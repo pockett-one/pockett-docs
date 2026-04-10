@@ -1,102 +1,321 @@
 'use client'
 
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { useEffect, useMemo, useState } from 'react'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Loader2 } from 'lucide-react'
 
+import Logo from '@/components/Logo'
+import { BillingPolarExplainInline } from '@/components/billing/billing-polar-inline'
 import { buttonVariants } from '@/components/ui/button'
+import { upgradeCopy } from '@/lib/billing/upgrade-copy'
 import { cn } from '@/lib/utils'
-import { clearCheckoutIntent } from '@/lib/marketing/checkout-intent'
+import { clearCheckoutIntent, readCheckoutIntent } from '@/lib/marketing/checkout-intent'
+import { supabase } from '@/lib/supabase'
 
 const REDIRECT_SECONDS = 5
 
+export type SuccessRedirectMode = 'default' | 'onboardingAfterCheckout'
+
 type Props = {
     checkoutId?: string
-    primaryHref: string
-    primaryLabel: string
+    mode?: SuccessRedirectMode
+    /** Default mode: post-checkout destination */
+    primaryHref?: string
+    primaryLabel?: string
+    /** Onboarding checkout: continue the setup flow */
+    continueOnboardingHref?: string
+    /** Full billing page (bypasses onboarding redirect when flagged) */
+    billingPlansHref?: string
 }
 
-export function SuccessRedirectCard({ checkoutId, primaryHref, primaryLabel }: Props) {
+function useResolvedCheckoutId(prop?: string): string | undefined {
+    const searchParams = useSearchParams()
+    const queryKey = searchParams.toString()
+    return useMemo(() => {
+        const fromProp = prop?.trim()
+        if (fromProp) return fromProp
+        return (
+            searchParams.get('checkoutId')?.trim() ||
+            searchParams.get('checkout_id')?.trim() ||
+            searchParams.get('checkoutid')?.trim() ||
+            undefined
+        )
+    }, [prop, queryKey, searchParams])
+}
+
+export function SuccessRedirectCard({
+    checkoutId,
+    mode = 'default',
+    primaryHref = '/d/billing',
+    primaryLabel = 'Go to billing',
+    continueOnboardingHref = '/d/onboarding?after_checkout=1',
+    billingPlansHref = '/d/billing?from_checkout=1',
+}: Props) {
     const router = useRouter()
+    const pathname = usePathname()
+    const searchParams = useSearchParams()
+    const paidPlanFromUrl = searchParams.get('paid_plan') === 'true'
+    const resolvedCheckoutId = useResolvedCheckoutId(checkoutId)
     const [secondsLeft, setSecondsLeft] = useState(REDIRECT_SECONDS)
+    const [invoiceLoading, setInvoiceLoading] = useState(false)
+    const [invoiceError, setInvoiceError] = useState<string | null>(null)
+    const [continueOnboardingPending, setContinueOnboardingPending] = useState(false)
+    const isOnboarding = mode === 'onboardingAfterCheckout'
+
+    /** `/pricing` → Standard checkout: `paid_plan` on the URL and/or `firma.checkoutIntent` in localStorage. */
+    const [showContinueOnboardingFromPricing, setShowContinueOnboardingFromPricing] = useState(paidPlanFromUrl)
 
     useEffect(() => {
+        if (!isOnboarding) {
+            clearCheckoutIntent()
+            return
+        }
+        if (paidPlanFromUrl || readCheckoutIntent() !== null) {
+            setShowContinueOnboardingFromPricing(true)
+        }
+    }, [isOnboarding, paidPlanFromUrl])
+
+    const clearPricingIntentAndQuery = useCallback(() => {
         clearCheckoutIntent()
-    }, [])
+        const q = new URLSearchParams(searchParams.toString())
+        if (!q.has('paid_plan')) return
+        q.delete('paid_plan')
+        const tail = q.toString()
+        router.replace(tail ? `${pathname}?${tail}` : pathname, { scroll: false })
+    }, [pathname, router, searchParams])
 
     useEffect(() => {
+        if (isOnboarding) return
         const intervalId = window.setInterval(() => {
             setSecondsLeft((prev) => Math.max(0, prev - 1))
         }, 1000)
         return () => window.clearInterval(intervalId)
-    }, [])
+    }, [isOnboarding])
 
     useEffect(() => {
+        if (isOnboarding) return
         if (secondsLeft !== 0) return
         router.push(primaryHref)
-    }, [secondsLeft, primaryHref, router])
+    }, [isOnboarding, secondsLeft, primaryHref, router])
 
     const progressPercent = useMemo(() => {
+        if (isOnboarding) return 100
         const elapsed = REDIRECT_SECONDS - secondsLeft
         return Math.min(100, Math.max(0, (elapsed / REDIRECT_SECONDS) * 100))
-    }, [secondsLeft])
+    }, [secondsLeft, isOnboarding])
+
+    const persistOnboardingThenContinue = useCallback(async () => {
+        setContinueOnboardingPending(true)
+        try {
+            await supabase.auth.getUser()
+            const {
+                data: { session },
+            } = await supabase.auth.getSession()
+            const token = session?.access_token
+            if (token) {
+                const res = await fetch('/api/onboarding/ui-progress', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${token}`,
+                    },
+                    body: JSON.stringify({ action: 'continue_to_connect' }),
+                })
+                if (!res.ok) {
+                    const err = (await res.json().catch(() => ({}))) as { error?: string }
+                    console.warn('Onboarding ui-progress after checkout:', err?.error ?? res.status)
+                }
+            }
+        } finally {
+            setContinueOnboardingPending(false)
+        }
+        router.push(continueOnboardingHref)
+    }, [continueOnboardingHref, router])
+
+    const downloadInvoice = useCallback(async () => {
+        const id = resolvedCheckoutId
+        if (!id) return
+        setInvoiceError(null)
+        setInvoiceLoading(true)
+        try {
+            const res = await fetch('/api/billing/checkout-invoice', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ checkoutId: id }),
+                credentials: 'same-origin',
+            })
+            const data = (await res.json().catch(() => ({}))) as { error?: string; invoiceUrl?: string }
+            if (!res.ok) {
+                setInvoiceError(data.error || 'Could not load invoice')
+                return
+            }
+            if (data.invoiceUrl) {
+                window.open(data.invoiceUrl, '_blank', 'noopener,noreferrer')
+            }
+        } finally {
+            setInvoiceLoading(false)
+        }
+    }, [resolvedCheckoutId])
 
     return (
-        <div className="relative min-h-[70vh] px-4 py-16">
+        <div className="relative min-h-[70vh] px-4 py-10 sm:py-16">
             <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden" aria-hidden>
                 <div className="absolute -left-16 top-8 h-64 w-64 rounded-full bg-slate-200/35 blur-3xl" />
                 <div className="absolute -right-14 top-28 h-56 w-56 rounded-full bg-slate-300/25 blur-3xl" />
             </div>
 
-            <div className="mx-auto flex max-w-xl items-center justify-center">
+            <div className="mx-auto w-full max-w-xl">
+                <div className="mb-8 flex flex-col items-center gap-1">
+                    <Link
+                        href="/"
+                        className="group shrink-0 rounded-xl outline-none ring-offset-2 focus-visible:ring-2 focus-visible:ring-slate-400/40"
+                    >
+                        <Logo size="md" showText wordmarkClassName="text-xl leading-none sm:text-2xl" />
+                    </Link>
+                    <p className="text-center text-[10px] font-medium uppercase tracking-widest text-slate-400">
+                        Checkout complete
+                    </p>
+                </div>
+
                 <div className="relative w-full overflow-hidden rounded-2xl border border-slate-200/90 bg-white p-7 text-center shadow-[0_2px_8px_rgba(15,23,42,0.04),0_16px_40px_-12px_rgba(15,23,42,0.12)] ring-1 ring-slate-900/[0.04]">
                     <div className="pointer-events-none absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-slate-50/90 via-slate-50/35 to-transparent" />
                     <div className="absolute inset-x-0 top-0 h-1 rounded-t-2xl bg-slate-200/70">
-                    <div
-                        className="h-1 rounded-t-2xl bg-slate-600 transition-[width] duration-1000 ease-linear"
-                        style={{ width: `${progressPercent}%` }}
-                    />
-                </div>
+                        <div
+                            className="h-1 rounded-t-2xl bg-slate-600 transition-[width] duration-1000 ease-linear"
+                            style={{ width: `${progressPercent}%` }}
+                        />
+                    </div>
 
                     <div className="relative z-10 mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full border border-slate-200/80 bg-gradient-to-br from-slate-100 to-slate-50 text-slate-900">
-                        <span className="text-xl font-semibold tabular-nums">{secondsLeft}</span>
+                        {isOnboarding ? (
+                            <span className="text-2xl" aria-hidden>
+                                ✓
+                            </span>
+                        ) : (
+                            <span className="text-xl font-semibold tabular-nums">{secondsLeft}</span>
+                        )}
                     </div>
 
                     <h1 className="relative z-10 text-2xl font-semibold tracking-tight text-slate-900">You&apos;re all set</h1>
                     <p className="relative z-10 mt-2 text-sm leading-relaxed text-slate-600">
-                        Thanks for subscribing. We&apos;ll take you back automatically when your workspace is ready.
+                        Thanks for subscribing. {isOnboarding ? 'Choose your next step below.' : "We'll take you back automatically when your workspace is ready."}
                     </p>
-                    <p className="relative z-10 mt-3 text-sm font-medium text-slate-700">
-                        Redirecting in <span className="tabular-nums">{secondsLeft}s</span>
-                    </p>
-
-                    {checkoutId ? (
-                        <p className="relative z-10 mt-2 break-all font-mono text-xs text-slate-500">
-                            Checkout ID: {checkoutId}
+                    {!isOnboarding ? (
+                        <p className="relative z-10 mt-3 text-sm font-medium text-slate-700">
+                            Redirecting in <span className="tabular-nums">{secondsLeft}s</span>
                         </p>
                     ) : null}
 
-                    <div className="relative z-10 mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
-                        <Link
-                            href={primaryHref}
-                            className={cn(
-                                buttonVariants({ variant: 'blackCta' }),
-                                'inline-flex h-11 min-w-[10rem] rounded-lg px-5 text-sm font-semibold'
-                            )}
-                        >
-                            {primaryLabel}
-                        </Link>
-                        {primaryHref !== '/d' ? (
-                            <Link
-                                href="/d"
+                    <div className="relative z-10 mx-auto mt-5 max-w-md border-t border-slate-100 pt-5 text-left">
+                        <p className="text-xs leading-relaxed text-slate-600">
+                            {upgradeCopy.checkoutSuccessPolarFootnotePrefix}{' '}
+                            <BillingPolarExplainInline className="mx-px inline-flex align-middle" />
+                            {upgradeCopy.checkoutSuccessPolarFootnoteSuffix}
+                        </p>
+                        <p className="mt-2 text-xs leading-relaxed text-slate-500">
+                            {upgradeCopy.checkoutSuccessReceiptLine}
+                        </p>
+                    </div>
+
+                    {resolvedCheckoutId ? (
+                        <p className="relative z-10 mt-4 break-all font-mono text-xs text-slate-500">
+                            Checkout ID: {resolvedCheckoutId}
+                        </p>
+                    ) : null}
+
+                    {resolvedCheckoutId ? (
+                        <div className="relative z-10 mt-4 flex flex-col items-center gap-2">
+                            <button
+                                type="button"
+                                onClick={() => void downloadInvoice()}
+                                disabled={invoiceLoading}
                                 className={cn(
-                                    buttonVariants({ variant: 'blackCta' }),
-                                    'inline-flex h-11 min-w-[10rem] rounded-lg px-5 text-sm font-semibold'
+                                    buttonVariants({ variant: 'outline' }),
+                                    'inline-flex h-10 min-w-[12rem] items-center justify-center gap-2 rounded-lg border-slate-200 bg-white px-4 text-sm font-semibold text-slate-800 disabled:opacity-60'
                                 )}
                             >
-                                All workspaces
-                            </Link>
-                        ) : null}
+                                {invoiceLoading ? (
+                                    <>
+                                        <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                                        Preparing invoice…
+                                    </>
+                                ) : (
+                                    'Download invoice (PDF)'
+                                )}
+                            </button>
+                            {invoiceError ? (
+                                <p className="max-w-sm text-xs text-amber-900">{invoiceError}</p>
+                            ) : null}
+                        </div>
+                    ) : null}
+
+                    <div className="relative z-10 mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
+                        {isOnboarding ? (
+                            showContinueOnboardingFromPricing ? (
+                                <>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            clearPricingIntentAndQuery()
+                                            void persistOnboardingThenContinue()
+                                        }}
+                                        disabled={continueOnboardingPending}
+                                        className={cn(
+                                            buttonVariants({ variant: 'blackCta' }),
+                                            'inline-flex h-11 min-w-[10rem] items-center justify-center gap-2 rounded-lg px-5 text-sm font-semibold disabled:opacity-60'
+                                        )}
+                                    >
+                                        {continueOnboardingPending ? (
+                                            <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                                        ) : null}
+                                        Continue onboarding
+                                    </button>
+                                    <Link
+                                        href={billingPlansHref}
+                                        className={cn(
+                                            buttonVariants({ variant: 'outline' }),
+                                            'inline-flex h-11 min-w-[10rem] rounded-lg border-slate-200 bg-white px-5 text-sm font-semibold text-slate-800'
+                                        )}
+                                    >
+                                        Billing &amp; plans
+                                    </Link>
+                                </>
+                            ) : (
+                                <Link
+                                    href={billingPlansHref}
+                                    className={cn(
+                                        buttonVariants({ variant: 'blackCta' }),
+                                        'inline-flex h-11 min-w-[12rem] rounded-lg px-5 text-sm font-semibold'
+                                    )}
+                                >
+                                    Back to Billing &amp; Plans
+                                </Link>
+                            )
+                        ) : (
+                            <>
+                                <Link
+                                    href={primaryHref}
+                                    className={cn(
+                                        buttonVariants({ variant: 'blackCta' }),
+                                        'inline-flex h-11 min-w-[10rem] rounded-lg px-5 text-sm font-semibold'
+                                    )}
+                                >
+                                    {primaryLabel}
+                                </Link>
+                                {primaryHref !== '/d' ? (
+                                    <Link
+                                        href="/d"
+                                        className={cn(
+                                            buttonVariants({ variant: 'blackCta' }),
+                                            'inline-flex h-11 min-w-[10rem] rounded-lg px-5 text-sm font-semibold'
+                                        )}
+                                    >
+                                        All workspaces
+                                    </Link>
+                                ) : null}
+                            </>
+                        )}
                     </div>
                 </div>
             </div>

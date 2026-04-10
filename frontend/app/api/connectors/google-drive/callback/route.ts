@@ -4,6 +4,7 @@ import { googleDriveConnector } from '@/lib/google-drive-connector'
 import { prisma } from '@/lib/prisma'
 import { config, getRedirectUrl, getGoogleDriveOAuthServerCredentials } from '@/lib/config'
 import { logger } from '@/lib/logger'
+import { fetchWithTimeoutRetry, isTransientNetworkError } from '@/lib/fetch-with-timeout-retry'
 
 const supabase = createClient(
   config.supabase.url,
@@ -18,6 +19,26 @@ function parseStateFlow(state: string | null): { flow?: string; nonce?: string; 
   } catch {
     return {}
   }
+}
+
+/** Redirect (non-popup) OAuth errors back to the initiating app path when encoded in state. */
+function resolveOAuthFailureRedirectPath(state: string | null): string {
+  if (!state) return '/d/onboarding'
+  try {
+    const decoded = JSON.parse(Buffer.from(state, 'base64').toString('utf-8')) as { next?: string | null }
+    if (typeof decoded.next === 'string' && decoded.next.startsWith('/')) {
+      return decoded.next.split('#')[0] || '/d/onboarding'
+    }
+  } catch {
+    /* ignore */
+  }
+  return '/d/onboarding'
+}
+
+function appPathWithError(appPath: string, errorCode: string): string {
+  const u = new URL(appPath, 'http://oauth-callback.local')
+  u.searchParams.set('error', errorCode)
+  return u.pathname + u.search
 }
 
 /**
@@ -61,8 +82,10 @@ export async function GET(request: NextRequest) {
         const html = popupHtml({ ok: false, error: 'no_code', nonce: stateNonce })
         return new NextResponse(html, { headers: { 'Content-Type': 'text/html; charset=utf-8' } })
       }
-      return NextResponse.redirect(getRedirectUrl('/d?error=no_code'))
+      return NextResponse.redirect(getRedirectUrl(appPathWithError(resolveOAuthFailureRedirectPath(state), 'no_code')))
     }
+
+    const oauthFailureBase = resolveOAuthFailureRedirectPath(state)
 
     // Exchange code for tokens (use same credential resolution as refreshAccessToken)
     let clientId: string
@@ -82,19 +105,51 @@ export async function GET(request: NextRequest) {
     }
     const redirectUri = config.googleDrive.redirectUri
 
-    const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: new URLSearchParams({
-        client_id: clientId!,
-        client_secret: clientSecret!,
-        code,
-        grant_type: 'authorization_code',
-        redirect_uri: redirectUri,
-      }),
+    const tokenBody = new URLSearchParams({
+      client_id: clientId!,
+      client_secret: clientSecret!,
+      code,
+      grant_type: 'authorization_code',
+      redirect_uri: redirectUri,
     })
+
+    let tokenResponse: Response
+    try {
+      tokenResponse = await fetchWithTimeoutRetry(
+        'https://oauth2.googleapis.com/token',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: tokenBody,
+        },
+        {
+          label: 'Google OAuth token exchange',
+          timeoutMs: 45_000,
+          maxAttempts: 3,
+        }
+      )
+    } catch (tokenErr) {
+      logger.error(
+        'Google OAuth token exchange failed (network/timeout after retries)',
+        tokenErr instanceof Error ? tokenErr : new Error(String(tokenErr))
+      )
+      const unreachable = isTransientNetworkError(tokenErr)
+      if (isPopup) {
+        const html = popupHtml({
+          ok: false,
+          error: unreachable ? 'google_oauth_unreachable' : 'token_exchange_failed',
+          nonce: stateNonce,
+        })
+        return new NextResponse(html, { headers: { 'Content-Type': 'text/html; charset=utf-8' } })
+      }
+      return NextResponse.redirect(
+        getRedirectUrl(
+          appPathWithError(oauthFailureBase, unreachable ? 'google_oauth_unreachable' : 'token_exchange_failed')
+        )
+      )
+    }
 
     if (!tokenResponse.ok) {
       const txt = await tokenResponse.text()
@@ -103,17 +158,47 @@ export async function GET(request: NextRequest) {
         const html = popupHtml({ ok: false, error: 'token_exchange_failed', nonce: stateNonce })
         return new NextResponse(html, { headers: { 'Content-Type': 'text/html; charset=utf-8' } })
       }
-      return NextResponse.redirect(getRedirectUrl('/d?error=token_exchange_failed'))
+      return NextResponse.redirect(getRedirectUrl(appPathWithError(oauthFailureBase, 'token_exchange_failed')))
     }
 
     const tokens = await tokenResponse.json()
 
     // Get user info
-    const userResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
-      headers: {
-        'Authorization': `Bearer ${tokens.access_token}`,
-      },
-    })
+    let userResponse: Response
+    try {
+      userResponse = await fetchWithTimeoutRetry(
+        'https://www.googleapis.com/oauth2/v2/userinfo',
+        {
+          headers: {
+            Authorization: `Bearer ${tokens.access_token}`,
+          },
+        },
+        {
+          label: 'Google OAuth userinfo',
+          timeoutMs: 30_000,
+          maxAttempts: 3,
+        }
+      )
+    } catch (userFetchErr) {
+      logger.error(
+        'Google userinfo fetch failed (network/timeout after retries)',
+        userFetchErr instanceof Error ? userFetchErr : new Error(String(userFetchErr))
+      )
+      const unreachable = isTransientNetworkError(userFetchErr)
+      if (isPopup) {
+        const html = popupHtml({
+          ok: false,
+          error: unreachable ? 'google_oauth_unreachable' : 'user_info_failed',
+          nonce: stateNonce,
+        })
+        return new NextResponse(html, { headers: { 'Content-Type': 'text/html; charset=utf-8' } })
+      }
+      return NextResponse.redirect(
+        getRedirectUrl(
+          appPathWithError(oauthFailureBase, unreachable ? 'google_oauth_unreachable' : 'user_info_failed')
+        )
+      )
+    }
 
     if (!userResponse.ok) {
       const txt = await userResponse.text()
@@ -122,7 +207,7 @@ export async function GET(request: NextRequest) {
         const html = popupHtml({ ok: false, error: 'user_info_failed', nonce: stateNonce })
         return new NextResponse(html, { headers: { 'Content-Type': 'text/html; charset=utf-8' } })
       }
-      return NextResponse.redirect(getRedirectUrl('/d?error=user_info_failed'))
+      return NextResponse.redirect(getRedirectUrl(appPathWithError(oauthFailureBase, 'user_info_failed')))
     }
 
     const userInfo = await userResponse.json()
@@ -161,7 +246,7 @@ export async function GET(request: NextRequest) {
         const html = popupHtml({ ok: false, error: 'no_user_id', nonce: stateNonce })
         return new NextResponse(html, { headers: { 'Content-Type': 'text/html; charset=utf-8' } })
       }
-      return NextResponse.redirect(getRedirectUrl('/d?error=no_user_id'))
+      return NextResponse.redirect(getRedirectUrl(appPathWithError(oauthFailureBase, 'no_user_id')))
     }
 
     let organization: { id: string } | null = null

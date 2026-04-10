@@ -178,10 +178,17 @@ export function ProfileSection({
             <ProfileBubblePopupContent
               name={getUserDisplayName()}
               email={getUserEmail()}
+              menuPlanLine={
+                planSubtitle !== undefined
+                  ? planSubtitleLoading
+                    ? 'Loading…'
+                    : planSubtitle || '—'
+                  : undefined
+              }
               bubbleSize={isCollapsed ? 'default' : 'lg'}
               avatarUrl={(user?.user_metadata?.avatar_url as string | null | undefined) ?? ((user?.user_metadata as Record<string, unknown>)?.picture as string | null | undefined) ?? null}
               footer={
-                <div className="mt-2 space-y-0.5 border-t border-slate-100 pt-2">
+                <div className="space-y-0.5">
                   <Link
                     href="/d/profile"
                     onClick={() => setIsProfileOpen(false)}
@@ -200,14 +207,14 @@ export function ProfileSection({
                       Billing
                     </Link>
                   )}
-                  <button
-                    type="button"
-                    onClick={() => window.location.href = '/d'}
-                    className="d-sidebar-nav flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900"
+                  <Link
+                    href="/d"
+                    onClick={() => setIsProfileOpen(false)}
+                    className="d-sidebar-nav flex w-full items-center gap-2 rounded-lg px-3 py-2 text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900"
                   >
-                    <Building2 className="h-4 w-4 shrink-0" />
+                    <Building2 className="h-4 w-4 shrink-0" aria-hidden />
                     Switch Workspace
-                  </button>
+                  </Link>
                   <button
                     type="button"
                     onClick={() => signOut()}

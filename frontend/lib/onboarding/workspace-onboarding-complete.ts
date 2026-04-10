@@ -16,9 +16,11 @@ export type FirmOnboardingCheckRow = {
 export async function isWorkspaceOnboardingComplete(firm: FirmOnboardingCheckRow): Promise<boolean> {
     const firmSettings = (firm.settings as Record<string, unknown> | null) ?? {}
     const onboarding = (firmSettings.onboarding as Record<string, unknown> | undefined) ?? {}
+    const flowV = Number(onboarding.onboardingFlowVersion) || 1
     if (onboarding.isComplete === true) return true
     if (onboarding.stage === 'completed') return true
-    if (onboarding.currentStep === 3 || onboarding.currentStep === 4) return true
+    // Flow v3 uses currentStep 3 for "connect stage reached / provisioning" — do not treat as finished.
+    if (flowV < 3 && (onboarding.currentStep === 3 || onboarding.currentStep === 4)) return true
 
     if (!firm.connectorId) return false
 

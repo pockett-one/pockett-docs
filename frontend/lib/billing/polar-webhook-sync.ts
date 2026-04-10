@@ -1,10 +1,11 @@
 import { prisma } from '@/lib/prisma'
 import { logger } from '@/lib/logger'
-import { resolveBillingAnchorFirmId, listFirmIdsInBillingGroup } from '@/lib/billing/billing-group'
+import { resolveBillingAnchorFirmId } from '@/lib/billing/billing-group'
 import { pricingModelFromRecurringFlag } from '@/lib/billing/pricing-model'
 import { applyBillingCapsAfterPolarSubscriptionSync } from '@/lib/billing/effective-billing-caps'
-import { userSettingsPlus } from '@/lib/user-settings-plus'
-import { createAdminClient } from '@/utils/supabase/admin'
+import { refreshBillingPlanForFirmGroupUsers } from '@/lib/billing/billing-user-session-sync'
+import { resolveSubscriptionAuditUserId } from '@/lib/billing/subscription-audit'
+import { advanceOnboardingPastSubscribeForBillingAnchor } from '@/lib/onboarding/advance-past-subscribe-on-paid'
 
 export type SubscriptionStatus = 'active' | 'trialing' | 'past_due' | 'canceled' | 'unpaid' | 'none'
 
@@ -103,59 +104,6 @@ function isSubscriptionAccessActive(status: SubscriptionStatus): boolean {
     return status === 'active' || status === 'trialing' || status === 'past_due'
 }
 
-async function refreshPlanMetadataForFirmUsers(anchorFirmId: string): Promise<void> {
-    try {
-        const groupFirmIds = await listFirmIdsInBillingGroup(anchorFirmId)
-        const members = await prisma.firmMember.findMany({
-            where: { firmId: { in: groupFirmIds } },
-            select: { userId: true },
-        })
-        const userIds = Array.from(new Set(members.map((m) => m.userId)))
-        if (userIds.length === 0) return
-
-        userSettingsPlus.invalidateUsers(userIds)
-
-        const activeSubscription = await prisma.subscription.findFirst({
-            where: { firmId: anchorFirmId, active: true, deletedAt: null },
-            orderBy: { createdAt: 'desc' },
-            select: { settings: true },
-        })
-        const settings = (activeSubscription?.settings as Record<string, unknown> | null) ?? {}
-        const metadata =
-            settings && typeof settings === 'object' && settings.metadata && typeof settings.metadata === 'object'
-                ? (settings.metadata as Record<string, unknown>)
-                : {}
-
-        const admin = createAdminClient()
-        await Promise.all(
-            userIds.map(async (userId) => {
-                try {
-                    const { data } = await admin.auth.admin.getUserById(userId)
-                    const existing = (data?.user?.app_metadata ?? {}) as Record<string, unknown>
-                    await admin.auth.admin.updateUserById(userId, {
-                        app_metadata: {
-                            ...existing,
-                            plan_entitlements: metadata,
-                            plan_entitlements_updated_at: new Date().toISOString(),
-                        },
-                    })
-                } catch (error) {
-                    logger.warn('Failed to refresh JWT plan metadata for user', {
-                        userId,
-                        anchorFirmId,
-                        message: error instanceof Error ? error.message : String(error),
-                    })
-                }
-            })
-        )
-    } catch (error) {
-        logger.warn('Failed to refresh plan metadata for firm users', {
-            anchorFirmId,
-            message: error instanceof Error ? error.message : String(error),
-        })
-    }
-}
-
 async function resolveFirmForPayload(details: ReturnType<typeof extractSubscriptionDetails>) {
     if (details.customerExternalId) {
         const firm = await prisma.firm.findUnique({
@@ -236,17 +184,26 @@ export async function syncFirmSubscriptionFromPolarEvent(
     const active = isSubscriptionAccessActive(status)
     const now = new Date()
     await prisma.$transaction(async (tx) => {
+        const auditUserId = await resolveSubscriptionAuditUserId(tx, anchorFirmId, null)
+        if (!auditUserId) {
+            logger.warn('Polar webhook: could not resolve subscription audit user id', { anchorFirmId })
+        }
+        // Must clear every active row for this firm first. Partial unique index
+        // `subscriptions_one_active_per_firm` allows only one active row per firmId.
+        // The previous NOT: polarSubscriptionId filter skipped rows with NULL polarSubscriptionId
+        // (sandbox free tier), so create() hit P2002 when adding a paid Polar subscription.
         if (active) {
             await tx.subscription.updateMany({
                 where: {
                     firmId: anchorFirmId,
                     active: true,
                     deletedAt: null,
-                    ...(details.subscriptionId
-                        ? { NOT: [{ polarSubscriptionId: details.subscriptionId }] }
-                        : {}),
                 },
-                data: { active: false, deactivatedAt: now },
+                data: {
+                    active: false,
+                    deactivatedAt: now,
+                    ...(auditUserId ? { updatedBy: auditUserId } : {}),
+                },
             })
         }
 
@@ -274,6 +231,7 @@ export async function syncFirmSubscriptionFromPolarEvent(
                     active,
                     deactivatedAt: active ? null : now,
                     settings: settingsPayload,
+                    ...(auditUserId ? { updatedBy: auditUserId } : {}),
                 },
             })
         } else {
@@ -289,6 +247,7 @@ export async function syncFirmSubscriptionFromPolarEvent(
                     active,
                     deactivatedAt: active ? null : now,
                     settings: settingsPayload,
+                    ...(auditUserId ? { createdBy: auditUserId, updatedBy: auditUserId } : {}),
                 },
             })
         }
@@ -301,6 +260,10 @@ export async function syncFirmSubscriptionFromPolarEvent(
         status,
     })
 
+    if (active) {
+        await advanceOnboardingPastSubscribeForBillingAnchor(anchorFirmId, details.productId ?? null)
+    }
+
     logger.warn('Polar webhook synced firm subscription', {
         status,
         resolvedFirmId,
@@ -310,7 +273,7 @@ export async function syncFirmSubscriptionFromPolarEvent(
         productId: details.productId,
     })
 
-    await refreshPlanMetadataForFirmUsers(anchorFirmId)
+    await refreshBillingPlanForFirmGroupUsers(anchorFirmId)
 
     return {
         anchorFirmId,

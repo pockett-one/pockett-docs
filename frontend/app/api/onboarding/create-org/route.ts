@@ -192,6 +192,7 @@ export async function POST(request: NextRequest) {
                 firmId: firm.id,
                 userEmail: user.email || '',
                 customerName,
+                userId,
             })
         }
 

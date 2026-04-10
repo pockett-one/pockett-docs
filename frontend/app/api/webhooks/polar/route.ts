@@ -2,6 +2,7 @@ import { Webhooks } from '@polar-sh/nextjs'
 import { NextRequest, NextResponse } from 'next/server'
 import { logger } from '@/lib/logger'
 import { syncFirmSubscriptionFromPolarEvent } from '@/lib/billing/polar-webhook-sync'
+import { refreshBillingPlanForFirmGroupUsers } from '@/lib/billing/billing-user-session-sync'
 import {
     maybeRevokeFreePolarAfterPaidSubscriptionSync,
     resyncSandboxFreePlanAfterPaidSubscriptionEnd,
@@ -34,6 +35,7 @@ function buildHandler() {
                 await maybeRevokeFreePolarAfterPaidSubscriptionSync(r)
                 if (r.status === 'canceled') {
                     await resyncSandboxFreePlanAfterPaidSubscriptionEnd(r.anchorFirmId)
+                    await refreshBillingPlanForFirmGroupUsers(r.anchorFirmId)
                 }
             }
         },
@@ -45,12 +47,14 @@ function buildHandler() {
             const r = await syncFirmSubscriptionFromPolarEvent(payload, { statusOverride: 'canceled' })
             if (r?.anchorFirmId) {
                 await resyncSandboxFreePlanAfterPaidSubscriptionEnd(r.anchorFirmId)
+                await refreshBillingPlanForFirmGroupUsers(r.anchorFirmId)
             }
         },
         onSubscriptionRevoked: async (payload) => {
             const r = await syncFirmSubscriptionFromPolarEvent(payload, { statusOverride: 'canceled' })
             if (r?.anchorFirmId) {
                 await resyncSandboxFreePlanAfterPaidSubscriptionEnd(r.anchorFirmId)
+                await refreshBillingPlanForFirmGroupUsers(r.anchorFirmId)
             }
         },
         onSubscriptionUncanceled: async (payload) => {

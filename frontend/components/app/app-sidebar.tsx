@@ -35,6 +35,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { buildBillingPageHref } from "@/lib/billing/build-billing-page-href"
 import { fetchBillingCurrentPlan } from "@/lib/billing/fetch-billing-current-plan"
 import { formatProfilePlanSubtitle } from "@/lib/billing/format-profile-plan-subtitle"
+import { planNameForSummary } from '@/lib/billing/subscription-display'
 import type { BillingCurrentPlanState } from "@/components/billing/polar-plans-picker"
 import { ProfileSection } from "@/components/ui/profile-section"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
@@ -364,10 +365,10 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
     }
   }, [billingFirmId])
 
-  const profilePlanSubtitle = useMemo(
-    () => formatProfilePlanSubtitle(billingPlanState, { sandboxOnly: billingSandboxOnly }),
-    [billingPlanState, billingSandboxOnly]
-  )
+  const profilePlanSubtitle = useMemo(() => {
+    if (!billingPlanState) return formatProfilePlanSubtitle(null, { sandboxOnly: billingSandboxOnly })
+    return planNameForSummary(billingPlanState)
+  }, [billingPlanState, billingSandboxOnly])
 
   // One spacing rule: compact for laptop view (avoid vertical scroll). Title-to-content within each section.
   const spaceTitle = 'mb-2'

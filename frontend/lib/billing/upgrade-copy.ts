@@ -11,7 +11,15 @@ export const upgradeCopy = {
     planPickerSwitchPlanCta: 'Switch plan',
     /** Polar customer portal — shared CTA above plan grid for active subscribers */
     billingPortalManageSubscriptionCta: 'Manage Subscription',
+    /** Compact CTA on billing workspace plan strip */
+    billingPortalManageShortCta: 'Manage',
     planPickerCurrentPlanBadge: 'Current plan',
+    currentPlanSummaryUnavailable: 'Unable to load plan details.',
+    /** When `subscriptionPlan` is not yet on the firm row / Polar sync (rare). */
+    currentPlanNameFallback: 'Free',
+    currentPlanLabelPlan: 'Plan',
+    currentPlanLabelValidUntil: 'Valid until',
+    currentPlanValidUntilUnlimited: 'Unlimited',
     /** https://polar.sh — linked from billing UI */
     polarShUrl: 'https://polar.sh',
     polarLinkLabel: 'Polar',
@@ -31,7 +39,10 @@ export const upgradeCopy = {
         'Sandbox is included on the free plan. Each additional custom firm requires an active subscription.',
     dropdownAction: 'How to upgrade',
     billingTitle: 'Upgrade for custom firms',
-    billingEyebrow: 'Billing & plans',
+    /** Single page `<h1>` for `/d/billing` and onboarding subscribe step (shared). */
+    billingPageTitle: 'Billing & plans',
+    /** In-card heading above workspace name (avoids duplicating the page title). */
+    billingCardWorkspaceHeading: 'This workspace',
     billingHeadline: 'Grow beyond the sandbox',
     billingBody: `Your sandbox remains available on the free tier. Subscribe to add custom firms for production use. When checkout completes, you’ll return to the workspace you started from.`,
     billingTrustLine1: 'Hosted checkout',
@@ -47,6 +58,8 @@ export const upgradeCopy = {
     addFirmModalHint: `The free plan includes your sandbox. Subscribe to add custom firms for your business.`,
     ctaContinueBilling: 'Continue to billing',
     ctaComparePlans: 'Compare plans',
+    /** Onboarding billing step — defer subscribe and continue setup (e.g. connect Drive). */
+    billingOnboardingSkipSubscribeCta: 'Skip for now',
     /** Customer portal unified intro (Polar link is inserted between prefix/suffix). */
     billingPortalCombinedIntroPrefix:
         'Manage your subscription on a secure, encrypted billing page hosted by our billing partner',
@@ -66,4 +79,10 @@ export const upgradeCopy = {
         'Use Manage Subscription above to open the secure billing page and change plans when available.',
     billingPortalAdminOnlyHint:
         'Only a firm admin can manage subscription and billing. Ask an admin for access.',
+    /** Post-checkout success page — past tense; Polar link inserted via `BillingPolarExplainInline`. */
+    checkoutSuccessPolarFootnotePrefix:
+        'Your payment was completed on a secure, encrypted checkout hosted by our billing partner',
+    checkoutSuccessPolarFootnoteSuffix: `. Payments run on Stripe-backed infrastructure—${BRAND_NAME} never collects or stores your full card number.`,
+    checkoutSuccessReceiptLine:
+        'A receipt is also emailed to the address you used at checkout. Use Download invoice below if you need a PDF right away.',
 } as const

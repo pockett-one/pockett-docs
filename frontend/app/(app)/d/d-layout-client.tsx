@@ -15,9 +15,17 @@ import { OnboardingProvider } from '@/lib/onboarding-context'
 import { OnboardingSidebar } from '@/components/onboarding/onboarding-sidebar'
 import { DebugFloatingTrigger } from '@/components/debug/debug-floating-trigger'
 import { StandardCheckoutIntentBanner } from '@/components/billing/standard-checkout-intent-banner'
+import { OnboardingExitGuardBanner } from '@/components/onboarding/onboarding-exit-guard-banner'
 
 const TOP_BAR_HEIGHT = 64
-const APP_BAR_GAP_PX = 10
+/** Matches Tailwind `spacing-3` (`mx-3` / `ml-3` on the fixed rails). */
+const SIDE_INSET_PX = 12
+/**
+ * Gap between top bar and the row below, and between left rail and middle pane.
+ * (Horizontal gap = paddingLeft − side inset − sidebar width — keep formula in sync.)
+ */
+const PANE_GUTTER_PX = 8
+const BOTTOM_INSET_PX = 10
 const RIGHT_PANEL_GAP_PX = 6
 
 function AppLayoutContent({
@@ -52,7 +60,7 @@ function AppLayoutContent({
             <div className="d-app min-h-screen bg-slate-50">
                 {/* Top bar - Branding + Alerts (white card) */}
                 <div
-                    className="fixed top-0 left-0 right-0 z-50 mx-3 mt-3 rounded-xl border border-slate-200/80 border-b-slate-200 bg-white shadow-sm flex items-center"
+                    className="fixed top-0 left-0 right-0 z-50 mx-3 rounded-b-xl border border-slate-200/80 border-b-slate-200 bg-white shadow-sm flex items-center"
                     style={{ height: TOP_BAR_HEIGHT }}
                 >
                     <AppTopbar />
@@ -62,8 +70,8 @@ function AppLayoutContent({
                 <div
                     className="fixed left-0 z-40 mt-0 ml-3 rounded-xl border border-slate-200/80 bg-white shadow-sm overflow-visible transition-all duration-300 flex flex-col"
                     style={{
-                        top: TOP_BAR_HEIGHT + APP_BAR_GAP_PX + APP_BAR_GAP_PX,
-                        bottom: APP_BAR_GAP_PX,
+                        top: TOP_BAR_HEIGHT + PANE_GUTTER_PX,
+                        bottom: BOTTOM_INSET_PX,
                         width: sidebarWidth,
                     }}
                 >
@@ -76,11 +84,11 @@ function AppLayoutContent({
 
                 {/* Middle pane + Right bar row - same top spacing as left app bar (gap below top bar). When right pane open, reserve space via margin so fixed panel doesn't overlap. */}
                 <div
-                    className="flex gap-3 pb-3 min-h-screen"
+                    className="flex gap-2 pb-3 min-h-screen"
                     style={{
-                        paddingLeft: sidebarWidth + APP_BAR_GAP_PX + APP_BAR_GAP_PX,
-                        paddingTop: TOP_BAR_HEIGHT + APP_BAR_GAP_PX + APP_BAR_GAP_PX,
-                        paddingRight: rightPaneContent ? RIGHT_PANEL_DOCKED_WIDTH_PX + RIGHT_PANEL_GAP_PX + APP_BAR_GAP_PX : APP_BAR_GAP_PX,
+                        paddingLeft: sidebarWidth + SIDE_INSET_PX + PANE_GUTTER_PX,
+                        paddingTop: TOP_BAR_HEIGHT + PANE_GUTTER_PX,
+                        paddingRight: rightPaneContent ? RIGHT_PANEL_DOCKED_WIDTH_PX + RIGHT_PANEL_GAP_PX + BOTTOM_INSET_PX : BOTTOM_INSET_PX,
                     }}
                 >
                     {/* Middle pane - main content (white card) */}
@@ -100,12 +108,13 @@ function AppLayoutContent({
                         onClose={clearPane}
                         headerActions={rightPaneHeaderActions}
                         embedContent={true}
-                        dockedPosition={{ top: TOP_BAR_HEIGHT + APP_BAR_GAP_PX + APP_BAR_GAP_PX, bottom: APP_BAR_GAP_PX, right: APP_BAR_GAP_PX, widthPx: RIGHT_PANEL_DOCKED_WIDTH_PX }}
+                        dockedPosition={{ top: TOP_BAR_HEIGHT + PANE_GUTTER_PX, bottom: BOTTOM_INSET_PX, right: BOTTOM_INSET_PX, widthPx: RIGHT_PANEL_DOCKED_WIDTH_PX }}
                     >
                         {rightPaneContent}
                     </LayoutRightPanel>
                 ) : null}
                 <StandardCheckoutIntentBanner />
+                <OnboardingExitGuardBanner />
                 <DebugFloatingTrigger />
             </div>
         </AuthGuard>

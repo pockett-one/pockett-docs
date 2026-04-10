@@ -7,8 +7,10 @@ import { ArrowLeft, Building2, CreditCard, Loader2, Lock, Receipt } from 'lucide
 import { getUserFirms } from '@/lib/actions/firms'
 import { validateCheckoutReturnTo } from '@/lib/billing/checkout-return-path'
 import { upgradeCopy } from '@/lib/billing/upgrade-copy'
+import { CurrentPlanSummary } from '@/components/billing/current-plan-summary'
 import { PolarPlansPicker, type BillingCurrentPlanState } from '@/components/billing/polar-plans-picker'
 import { fetchBillingCurrentPlan } from '@/lib/billing/fetch-billing-current-plan'
+import { shouldShowSandboxUpgradeMarketing } from '@/lib/billing/subscription-display'
 import { cn } from '@/lib/utils'
 
 const trustItems = [
@@ -36,35 +38,44 @@ const cardSurface = cn(
     'ring-1 ring-slate-900/[0.04]'
 )
 
-/** Billing page: richer #ECC0AA presence on trust row */
-const trustCardSurfacePeach = cn(
-    'rounded-2xl border border-[#ECC0AA]/45 bg-gradient-to-br from-[#ECC0AA]/16 via-white to-white',
-    'shadow-[0_2px_8px_rgba(15,23,42,0.04),0_16px_40px_-12px_rgba(236,192,170,0.14)]',
-    'ring-1 ring-[#ECC0AA]/22',
-    'transition-all duration-300 ease-out hover:border-[#ECC0AA]/65',
-    'hover:shadow-[0_8px_24px_-8px_rgba(236,192,170,0.18),0_20px_48px_-16px_rgba(15,23,42,0.1)]',
-    'hover:ring-[#ECC0AA]/35'
-)
-
-/** Icon wells — trial accent #ECC0AA (billing page only; promote to tokens if we keep it) */
-const billingIconTileClass = cn(
+/** Trust row icon — matches /d dashboard cards (slate, neutral). */
+const trustIconTileClass = cn(
     'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl',
-    'bg-gradient-to-br from-[#ECC0AA]/55 via-[#ECC0AA]/22 to-slate-50 text-[#5c3f32]',
-    'shadow-[inset_0_1px_0_0_rgba(255,255,255,0.55),0_1px_2px_rgba(15,23,42,0.07)]',
-    'ring-1 ring-[#ECC0AA]/55'
+    'border border-slate-200 bg-white text-slate-600 shadow-sm'
 )
 
-export function BillingPageClient() {
+export type BillingPageClientProps = {
+    /**
+     * Embedded in onboarding step 2: full billing UI with checkout, plus Skip → connect Drive.
+     * Query `onboarding_billing=1` on `/d/billing` also enables the same behavior when not passed as props.
+     */
+    variant?: 'page' | 'onboardingSubscribe'
+    onSkipToConnectDrive?: () => void | Promise<void>
+    /** Polar `returnTo` after checkout (must pass `validateCheckoutReturnTo`). */
+    embeddedCheckoutReturnTo?: string
+}
+
+export function BillingPageClient({
+    variant: variantProp,
+    onSkipToConnectDrive,
+    embeddedCheckoutReturnTo,
+}: BillingPageClientProps = {}) {
     const pathname = usePathname()
     const router = useRouter()
     const searchParams = useSearchParams()
     const firmSlugParam = searchParams.get('firmSlug')?.trim() || ''
     const returnToParam = searchParams.get('returnTo')
     const paidPlanIntent = searchParams.get('paid_plan') === 'true'
+    const onboardingBillingQuery = searchParams.get('onboarding_billing') === '1'
+    const variant = variantProp ?? (onboardingBillingQuery ? 'onboardingSubscribe' : 'page')
+    const isOnboardingSubscribe = variant === 'onboardingSubscribe'
 
     const [firms, setFirms] = useState<Awaited<ReturnType<typeof getUserFirms>>>([])
     const [loadError, setLoadError] = useState<string | null>(null)
     const [currentPlanState, setCurrentPlanState] = useState<BillingCurrentPlanState | null>(null)
+    const [currentPlanLoading, setCurrentPlanLoading] = useState(false)
+    /** False until the first fetch for the selected firm finishes (avoids a flash of "unable to load"). */
+    const [currentPlanFetchCompleted, setCurrentPlanFetchCompleted] = useState(false)
     const [firmManageOk, setFirmManageOk] = useState(false)
     const [firmManageChecked, setFirmManageChecked] = useState(false)
     const [skipSubmitting, setSkipSubmitting] = useState(false)
@@ -102,14 +113,24 @@ export function BillingPageClient() {
         let cancelled = false
         if (!selectedFirm?.id) {
             setCurrentPlanState(null)
+            setCurrentPlanLoading(false)
+            setCurrentPlanFetchCompleted(false)
             return
         }
+        setCurrentPlanFetchCompleted(false)
+        setCurrentPlanLoading(true)
         void fetchBillingCurrentPlan(selectedFirm.id)
             .then((current) => {
                 if (!cancelled) setCurrentPlanState(current)
             })
             .catch(() => {
                 if (!cancelled) setCurrentPlanState(null)
+            })
+            .finally(() => {
+                if (!cancelled) {
+                    setCurrentPlanLoading(false)
+                    setCurrentPlanFetchCompleted(true)
+                }
             })
         return () => {
             cancelled = true
@@ -135,9 +156,31 @@ export function BillingPageClient() {
         }
     }, [selectedFirm?.id])
 
-    const returnPath =
-        validateCheckoutReturnTo(returnToParam) ??
-        (selectedFirm ? `/d/f/${selectedFirm.slug}` : '/d')
+    const returnPath = useMemo(() => {
+        if (isOnboardingSubscribe) {
+            const fromProp = embeddedCheckoutReturnTo
+                ? validateCheckoutReturnTo(embeddedCheckoutReturnTo)
+                : null
+            const fromUrl = validateCheckoutReturnTo(returnToParam)
+            return fromProp ?? fromUrl ?? '/d/onboarding?after_checkout=1'
+        }
+        return (
+            validateCheckoutReturnTo(returnToParam) ??
+            (selectedFirm ? `/d/f/${selectedFirm.slug}` : '/d')
+        )
+    }, [
+        isOnboardingSubscribe,
+        embeddedCheckoutReturnTo,
+        returnToParam,
+        selectedFirm,
+    ])
+
+    const showFreeTierUpgradeCopy = useMemo(() => {
+        if (!currentPlanFetchCompleted || !currentPlanState) return false
+        return shouldShowSandboxUpgradeMarketing(currentPlanState)
+    }, [currentPlanFetchCompleted, currentPlanState])
+
+    const showOnboardingSkipHint = isOnboardingSubscribe && showFreeTierUpgradeCopy
 
     useEffect(() => {
         if (loadError || !firms.length || !selectedFirm?.id) {
@@ -158,18 +201,22 @@ export function BillingPageClient() {
                 }
                 setFirmManageOk(false)
                 setFirmManageChecked(true)
-                router.replace(returnPath)
+                if (!isOnboardingSubscribe) {
+                    router.replace(returnPath)
+                }
             })
             .catch(() => {
                 if (cancelled) return
                 setFirmManageOk(false)
                 setFirmManageChecked(true)
-                router.replace(returnPath)
+                if (!isOnboardingSubscribe) {
+                    router.replace(returnPath)
+                }
             })
         return () => {
             cancelled = true
         }
-    }, [loadError, firms.length, selectedFirm?.id, returnPath, router])
+    }, [loadError, firms.length, selectedFirm?.id, returnPath, router, isOnboardingSubscribe])
 
     if (firms.length > 0 && selectedFirm?.id && !firmManageChecked) {
         return (
@@ -181,7 +228,30 @@ export function BillingPageClient() {
     }
 
     if (firms.length > 0 && selectedFirm?.id && firmManageChecked && !firmManageOk) {
-        return null
+        if (!isOnboardingSubscribe) {
+            return null
+        }
+        return (
+            <div className="relative mx-auto max-w-5xl space-y-6 pb-10 px-4 sm:px-5 md:px-6">
+                <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+                    <p className="font-medium">Billing isn&apos;t available for your role on this workspace.</p>
+                    <p className="mt-1 text-amber-900/90">
+                        Ask an owner to assign billing access, or continue onboarding to connect Google Drive.
+                    </p>
+                </div>
+                {onSkipToConnectDrive ? (
+                    <div className="flex justify-end">
+                        <button
+                            type="button"
+                            onClick={() => void onSkipToConnectDrive()}
+                            className="inline-flex h-10 items-center rounded-md border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                        >
+                            Skip to Google Drive
+                        </button>
+                    </div>
+                ) : null}
+            </div>
+        )
     }
 
     const handleSkipUpgrade = async () => {
@@ -203,31 +273,55 @@ export function BillingPageClient() {
 
     return (
         <div className="relative mx-auto max-w-5xl space-y-10 pb-10 px-4 sm:px-5 md:px-6">
-            <div
-                className="pointer-events-none absolute inset-0 -z-10 overflow-hidden rounded-3xl opacity-80"
-                aria-hidden
-            >
-                <div className="absolute -left-20 top-0 h-64 w-64 rounded-full bg-[#ECC0AA]/35 blur-3xl" />
-                <div className="absolute -right-10 top-32 h-56 w-56 rounded-full bg-[#ECC0AA]/22 blur-3xl" />
-                <div className="absolute right-1/4 top-[22rem] h-40 w-40 rounded-full bg-[#ECC0AA]/12 blur-3xl" />
-            </div>
+            {!isOnboardingSubscribe ? (
+                <Link
+                    href={returnPath}
+                    className="group inline-flex items-center gap-2 text-sm font-medium text-slate-700 transition-colors hover:text-slate-900"
+                >
+                    <span className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white shadow-sm transition duration-300 group-hover:-translate-x-0.5 group-hover:border-slate-300">
+                        <ArrowLeft className="h-4 w-4" aria-hidden />
+                    </span>
+                    Back to workspace
+                </Link>
+            ) : null}
 
-            <Link
-                href={returnPath}
-                className="group inline-flex items-center gap-2 text-sm font-medium text-[#7a5343] transition-colors hover:text-[#5c3f32]"
-            >
-                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-[#ECC0AA]/40 transition duration-300 group-hover:-translate-x-0.5 group-hover:shadow-md group-hover:ring-[#ECC0AA]/65">
-                    <ArrowLeft className="h-4 w-4" aria-hidden />
-                </span>
-                Back to workspace
-            </Link>
+            <header className="space-y-4">
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                    <h1 className="min-w-0 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+                        {upgradeCopy.billingPageTitle}
+                    </h1>
+                    {isOnboardingSubscribe && onSkipToConnectDrive ? (
+                        <button
+                            type="button"
+                            onClick={() => void onSkipToConnectDrive()}
+                            className={cn(
+                                'inline-flex shrink-0 items-center justify-center rounded-lg px-6 py-3 text-base font-semibold shadow-md transition',
+                                'bg-slate-900 text-white hover:bg-slate-800',
+                                'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400'
+                            )}
+                            aria-label="Skip subscribing for now and continue to connect Google Drive"
+                        >
+                            {upgradeCopy.billingOnboardingSkipSubscribeCta}
+                        </button>
+                    ) : null}
+                </div>
 
-            <header className="space-y-1.5">
-                <h1 className="d-title flex items-center gap-2.5">
-                    {upgradeCopy.billingHeadline}
-                </h1>
-                <p className="text-sm font-medium text-[#7a5343]">{upgradeCopy.billingTitle}</p>
-                <p className="max-w-2xl text-sm leading-relaxed text-slate-600">{upgradeCopy.billingBody}</p>
+                {showOnboardingSkipHint ? (
+                    <p className="text-sm leading-relaxed text-slate-600">
+                        Compare plans below, or skip when you&apos;re ready to connect Google Drive. Billing stays
+                        available from settings later.
+                    </p>
+                ) : null}
+
+                {showFreeTierUpgradeCopy ? (
+                    <>
+                        <p className="text-lg font-semibold tracking-tight text-slate-800 sm:text-xl">
+                            {upgradeCopy.billingHeadline}
+                        </p>
+                        <p className="text-sm font-medium text-slate-600">{upgradeCopy.billingTitle}</p>
+                        <p className="max-w-2xl text-sm leading-relaxed text-slate-600">{upgradeCopy.billingBody}</p>
+                    </>
+                ) : null}
                 {paidPlanIntent && (
                     <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
                         You currently have an active Free plan. You can upgrade now, or skip and continue.
@@ -242,8 +336,8 @@ export function BillingPageClient() {
 
             <ul className="grid gap-4 sm:grid-cols-3">
                 {trustItems.map(({ icon: Icon, title, detail }) => (
-                    <li key={title} className={cn('flex gap-3 p-4 sm:p-5', trustCardSurfacePeach)}>
-                        <span className={billingIconTileClass}>
+                    <li key={title} className={cn('flex gap-3 p-4 sm:p-5', cardSurface)}>
+                        <span className={trustIconTileClass}>
                             <Icon className="h-5 w-5" aria-hidden />
                         </span>
                         <div className="min-w-0">
@@ -254,55 +348,48 @@ export function BillingPageClient() {
                 ))}
             </ul>
 
-            <section
-                className={cn(
-                    'relative overflow-hidden',
-                    cardSurface,
-                    'ring-1 ring-[#ECC0AA]/30',
-                    'transition-shadow duration-500 ease-out hover:shadow-[0_12px_40px_-12px_rgba(236,192,170,0.2)]'
-                )}
-            >
-                <div
-                    className="pointer-events-none absolute inset-x-0 top-0 z-10 h-1 bg-gradient-to-r from-[#ECC0AA]/90 via-[#ECC0AA] to-[#ECC0AA]/90"
-                    aria-hidden
-                />
-                <div className="relative border-b border-[#ECC0AA]/20 bg-gradient-to-br from-[#ECC0AA]/30 via-white to-slate-50/45 px-5 py-5 sm:px-7 sm:py-6">
-                    <div
-                        className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-[#ECC0AA]/35 to-transparent"
-                        aria-hidden
-                    />
-                    <div className="group/billhead flex items-start gap-3.5">
-                        <span
-                            className={cn(
-                                billingIconTileClass,
-                                'transition duration-300 group-hover/billhead:ring-[#ECC0AA]/55'
-                            )}
-                        >
-                            <CreditCard className="h-5 w-5" aria-hidden />
-                        </span>
-                        <div className="min-w-0">
-                            <h2 className="text-lg font-semibold tracking-tight text-slate-900">
-                                {upgradeCopy.billingEyebrow}
-                            </h2>
-                            <p className="mt-1 text-xs font-medium uppercase tracking-wider text-slate-400">
-                                Workspace
-                            </p>
-                            {loadError ? (
-                                <p className="mt-1 text-sm text-red-600">{loadError}</p>
-                            ) : !firms.length ? (
-                                <p className="mt-1 text-sm text-slate-600">
-                                    No workspaces found. Open the app from a firm first.
+            <section className={cn('overflow-hidden', cardSurface)}>
+                <div className="border-b border-slate-100 bg-slate-50/40 px-5 py-5 sm:px-7 sm:py-6">
+                    <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between sm:gap-6 lg:gap-8">
+                        <div className="flex min-w-0 flex-1 items-start gap-3.5">
+                            <span className={trustIconTileClass}>
+                                <CreditCard className="h-5 w-5" aria-hidden />
+                            </span>
+                            <div className="min-w-0">
+                                <h2 className="text-lg font-semibold tracking-tight text-slate-900">
+                                    {upgradeCopy.billingCardWorkspaceHeading}
+                                </h2>
+                                <p className="mt-1 text-xs font-medium uppercase tracking-wider text-slate-400">
+                                    Workspace
                                 </p>
-                            ) : selectedFirm ? (
-                                <p className="mt-0.5 text-sm text-slate-700">
-                                    <span className="font-medium">{selectedFirm.name}</span>
-                                    <span className="font-mono text-xs text-slate-400">
-                                        {' '}
-                                        /{selectedFirm.slug}
-                                    </span>
-                                </p>
-                            ) : null}
+                                {loadError ? (
+                                    <p className="mt-1 text-sm text-red-600">{loadError}</p>
+                                ) : !firms.length ? (
+                                    <p className="mt-1 text-sm text-slate-600">
+                                        No workspaces found. Open the app from a firm first.
+                                    </p>
+                                ) : selectedFirm ? (
+                                    <p className="mt-0.5 text-sm text-slate-700">
+                                        <span className="font-medium">{selectedFirm.name}</span>
+                                        <span className="font-mono text-xs text-slate-400">
+                                            {' '}
+                                            /{selectedFirm.slug}
+                                        </span>
+                                    </p>
+                                ) : null}
+                            </div>
                         </div>
+                        {selectedFirm ? (
+                            <div className="w-full shrink-0 sm:max-w-[min(100%,30rem)] lg:max-w-[34rem] sm:pt-0">
+                                <CurrentPlanSummary
+                                    firmId={selectedFirm.id}
+                                    portalReturnPath={portalReturnPath}
+                                    currentPlanState={currentPlanState}
+                                    loading={!currentPlanFetchCompleted || currentPlanLoading}
+                                    variant="embedded"
+                                />
+                            </div>
+                        ) : null}
                     </div>
                 </div>
 
@@ -314,12 +401,13 @@ export function BillingPageClient() {
                             portalReturnPath={portalReturnPath}
                             density="default"
                             currentPlanState={currentPlanState}
-                            blueAccentTrial
+                            blueAccentTrial={false}
+                            hideStandaloneFreePlan
                         />
                     ) : null}
                 </div>
             </section>
-            {paidPlanIntent && (
+            {paidPlanIntent && !isOnboardingSubscribe && (
                 <div className="flex justify-end">
                     <button
                         type="button"

@@ -1,8 +1,19 @@
 import { Polar } from '@polar-sh/sdk'
 import { prisma } from '@/lib/prisma'
 import { logger } from '@/lib/logger'
-import { pricingModelFromRecurringFlag } from '@/lib/billing/pricing-model'
+import { type PricingModel, pricingModelFromRecurringFlag } from '@/lib/billing/pricing-model'
 import { getDefaultCapsForPlanColumn } from '@/lib/billing/plan-default-caps'
+import { refreshBillingPlanForFirmGroupUsers } from '@/lib/billing/billing-user-session-sync'
+import { resolveSubscriptionAuditUserId } from '@/lib/billing/subscription-audit'
+
+type PolarProduct = Awaited<ReturnType<Polar['products']['get']>>
+
+/** Lossless JSON snapshot of a Polar SDK object (Dates → ISO strings) for `subscriptions.settings`. */
+function polarEntityToJsonSnapshot(value: unknown): Record<string, unknown> {
+    return JSON.parse(
+        JSON.stringify(value, (_key, v) => (v instanceof Date ? v.toISOString() : v))
+    ) as Record<string, unknown>
+}
 
 function polarServer(): 'production' | 'sandbox' {
     return process.env.POLAR_SERVER === 'production' ? 'production' : 'sandbox'
@@ -26,10 +37,42 @@ export function billingEmailForFirm(userEmail: string, firmId: string): string {
     return `${local}+firm${tag}@${domain}`
 }
 
-async function persistFirmWithLifetimeFreePlan(firmId: string, customerId: string) {
-    const displayName = process.env.POLAR_FREE_PLAN_DISPLAY_NAME?.trim() || 'Free plan'
+async function loadPolarFreeCatalogProduct(polar: Polar, productId: string): Promise<PolarProduct> {
+    try {
+        const product = await polar.products.get({ id: productId })
+        const name = product.name?.trim()
+        if (!name) {
+            throw new Error(`Polar product ${productId} returned an empty name`)
+        }
+        return product
+    } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e)
+        logger.error(
+            '[polar-free-plan] products.get failed for POLAR_FREE_PRODUCT_ID',
+            e instanceof Error ? e : new Error(msg),
+            undefined,
+            { productId }
+        )
+        throw new Error(
+            `Could not load Polar free product ${productId} from the API. Fix POLAR_FREE_PRODUCT_ID / token / POLAR_SERVER. ${msg}`
+        )
+    }
+}
+
+/** Writes firm + `platform.subscriptions` after Polar API has returned a stable `customerId` (not webhook-driven). */
+async function persistFirmWithLifetimeFreePlan(
+    firmId: string,
+    customerId: string,
+    actorUserId: string | null | undefined,
+    polarProduct: PolarProduct
+) {
+    const planLabel = polarProduct.name.trim()
+    const pricingModel = pricingModelFromRecurringFlag(polarProduct.isRecurring)
+    const polarProductSnapshot = polarEntityToJsonSnapshot(polarProduct)
+    const polarPlanMetadataFlat = polarEntityToJsonSnapshot(polarProduct.metadata ?? {})
     const sandboxCaps = getDefaultCapsForPlanColumn('sandbox')
     await prisma.$transaction(async (tx) => {
+        const auditUserId = await resolveSubscriptionAuditUserId(tx, firmId, actorUserId)
         await tx.firm.update({
             where: { id: firmId },
             data: {
@@ -38,8 +81,8 @@ async function persistFirmWithLifetimeFreePlan(firmId: string, customerId: strin
                 polarOrderId: null,
                 subscriptionStatus: 'active',
                 subscriptionProvider: 'polar',
-                subscriptionPlan: displayName,
-                pricingModel: pricingModelFromRecurringFlag(false),
+                subscriptionPlan: planLabel,
+                pricingModel,
                 subscriptionCurrentPeriodEnd: null,
                 billingActiveEngagementCap: sandboxCaps.activeEngagementCap,
                 billingGroupFirmCap: sandboxCaps.firmGroupCap,
@@ -49,7 +92,11 @@ async function persistFirmWithLifetimeFreePlan(firmId: string, customerId: strin
 
         await tx.subscription.updateMany({
             where: { firmId, active: true, deletedAt: null },
-            data: { active: false, deactivatedAt: new Date() },
+            data: {
+                active: false,
+                deactivatedAt: new Date(),
+                ...(auditUserId ? { updatedBy: auditUserId } : {}),
+            },
         })
 
         await tx.subscription.create({
@@ -57,15 +104,19 @@ async function persistFirmWithLifetimeFreePlan(firmId: string, customerId: strin
                 firmId,
                 provider: 'polar',
                 status: 'active',
-                plan: displayName,
+                plan: planLabel,
                 polarCustomerId: customerId,
                 polarSubscriptionId: null,
                 polarOrderId: null,
                 active: true,
+                ...(auditUserId ? { createdBy: auditUserId, updatedBy: auditUserId } : {}),
                 settings: {
                     metadata: {
+                        ...polarPlanMetadataFlat,
                         entitledEngagements: sandboxCaps.activeEngagementCap,
-                        source: 'free_sandbox_defaults',
+                        source: 'polar_free_product_sync',
+                        polarProductId: polarProduct.id,
+                        polarProduct: polarProductSnapshot,
                     },
                 },
             },
@@ -73,7 +124,7 @@ async function persistFirmWithLifetimeFreePlan(firmId: string, customerId: strin
     })
 }
 
-async function assertFirmBillingLinked(firmId: string): Promise<void> {
+async function assertFirmBillingLinked(firmId: string, expectedPricingModel: PricingModel): Promise<void> {
     const firm = await prisma.firm.findUnique({
         where: { id: firmId },
         select: {
@@ -104,13 +155,16 @@ async function assertFirmBillingLinked(firmId: string): Promise<void> {
     if (!firm.subscriptionPlan?.trim()) {
         throw new Error('Firm billing link verification failed: subscriptionPlan not set after Polar setup.')
     }
-    if (firm.pricingModel !== pricingModelFromRecurringFlag(false)) {
-        throw new Error('Firm billing link verification failed: pricingModel must be one_time_purchase for free tier.')
+    if (firm.pricingModel !== expectedPricingModel) {
+        throw new Error(
+            `Firm billing link verification failed: pricingModel must match Polar product (${expectedPricingModel}), got ${firm.pricingModel ?? 'null'}.`
+        )
     }
 }
 
 /**
- * Ensures the sandbox (anchor) firm has a Polar customer + free-product subscription.
+ * Sandbox free tier: **Polar API first** (`getStateExternal` / `customers.create`), then **DB insert on success**
+ * (`platform.subscriptions` active row + firm billing columns). Initial free provisioning is not done via Polar webhooks.
  * Required for onboarding unless POLAR_ALLOW_ONBOARDING_WITHOUT_BILLING=true.
  * On failure, throws so sandbox onboarding does not succeed.
  */
@@ -118,6 +172,8 @@ export async function ensurePolarFreePlanForSandboxFirm(params: {
     firmId: string
     userEmail: string
     customerName?: string | null
+    /** User performing onboarding / billing setup; used for `subscriptions.createdBy` / `updatedBy`. */
+    userId?: string | null
 }): Promise<void> {
     if (allowOnboardingWithoutPolarBilling()) {
         logger.warn(
@@ -141,6 +197,12 @@ export async function ensurePolarFreePlanForSandboxFirm(params: {
         )
         throw new Error(msg)
     }
+    const freeProductId = process.env.POLAR_FREE_PRODUCT_ID?.trim()
+    if (!freeProductId) {
+        throw new Error(
+            'Set POLAR_FREE_PRODUCT_ID to your Polar free/sandbox product id. Plan name, pricing model, and a full product snapshot are read from the Polar API (products.get) and written to the database.'
+        )
+    }
     const server = polarServer()
 
     logger.info('[polar-free-plan] Starting free-plan provisioning', {
@@ -153,6 +215,9 @@ export async function ensurePolarFreePlanForSandboxFirm(params: {
         accessToken: token,
         server,
     })
+
+    const polarProduct = await loadPolarFreeCatalogProduct(polar, freeProductId)
+    const expectedPricingModel = pricingModelFromRecurringFlag(polarProduct.isRecurring)
 
     type PolarCustomerState = Awaited<ReturnType<Polar['customers']['getStateExternal']>>
     let state: PolarCustomerState | null = null
@@ -172,9 +237,10 @@ export async function ensurePolarFreePlanForSandboxFirm(params: {
     }
 
     if (state) {
-        await persistFirmWithLifetimeFreePlan(params.firmId, state.id)
+        await persistFirmWithLifetimeFreePlan(params.firmId, state.id, params.userId, polarProduct)
         logger.info('[polar-free-plan] Linked existing Polar customer to lifetime free plan', { firmId: params.firmId })
-        await assertFirmBillingLinked(params.firmId)
+        await assertFirmBillingLinked(params.firmId, expectedPricingModel)
+        await refreshBillingPlanForFirmGroupUsers(params.firmId)
         return
     }
 
@@ -212,7 +278,8 @@ export async function ensurePolarFreePlanForSandboxFirm(params: {
     }
 
     const refreshed = await polar.customers.getStateExternal({ externalId: params.firmId })
-    await persistFirmWithLifetimeFreePlan(params.firmId, refreshed.id)
-    await assertFirmBillingLinked(params.firmId)
+    await persistFirmWithLifetimeFreePlan(params.firmId, refreshed.id, params.userId, polarProduct)
+    await assertFirmBillingLinked(params.firmId, expectedPricingModel)
     logger.info('[polar-free-plan] Lifetime free plan provisioning complete', { firmId: params.firmId })
+    await refreshBillingPlanForFirmGroupUsers(params.firmId)
 }

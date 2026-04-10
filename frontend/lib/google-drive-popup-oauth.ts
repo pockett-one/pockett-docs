@@ -36,6 +36,15 @@ export function isGoogleDriveOAuthPopupOriginAllowed(origin: string, appOrigin: 
 /** User-facing message for `data.error` from OAuth callback postMessage. */
 export function googleDriveOAuthPopupFailureMessage(errorCode?: string): string {
   if (errorCode === 'oauth_error') return 'Google sign-in was cancelled or denied.'
+  if (errorCode === 'google_oauth_unreachable') {
+    return 'Could not reach Google to finish sign-in (network timeout or outage). Check your connection and try again.'
+  }
+  if (errorCode === 'token_exchange_failed' || errorCode === 'user_info_failed') {
+    return 'Google could not finish sign-in. Try again in a moment.'
+  }
+  if (errorCode === 'oauth_not_configured') {
+    return 'Google Drive sign-in is not configured on this server.'
+  }
   if (typeof errorCode === 'string' && errorCode.length > 0) return errorCode
   return 'Google Drive connection failed.'
 }

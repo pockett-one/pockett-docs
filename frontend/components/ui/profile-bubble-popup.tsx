@@ -22,6 +22,11 @@ export interface ProfileBubblePopupUser {
     email: string
     avatarUrl?: string | null
     personaName?: string
+    /**
+     * When set, header shows three rows: name, email, plan line (e.g. app shell profile menu).
+     * When omitted, second row is `headerSecondary ?? email` (legacy).
+     */
+    menuPlanLine?: string | null
     /** When set, shown under the name instead of email (e.g. plan). Copy copies this value. */
     headerSecondary?: string | null
     /** Match the trigger: sidebar uses `default` when collapsed, `lg` when expanded. */
@@ -68,6 +73,7 @@ export function ProfileBubblePopupContent({
     email,
     avatarUrl,
     personaName,
+    menuPlanLine,
     headerSecondary,
     bubbleSize = 'lg',
     footer,
@@ -101,28 +107,63 @@ export function ProfileBubblePopupContent({
                             <Copy className="h-3.5 w-3.5" />
                         </button>
                     </div>
-                    <div className="flex items-center justify-between gap-1.5">
-                        <span
-                            className="text-[11px] text-slate-500 truncate"
-                            title={headerSecondary != null ? headerSecondary : email}
-                        >
-                            {headerSecondary != null ? headerSecondary : email}
-                        </span>
-                        <button
-                            type="button"
-                            onClick={(e) =>
-                                copyToClipboard(
-                                    e,
-                                    headerSecondary != null ? headerSecondary : email,
-                                    headerSecondary != null ? 'Plan' : 'Email'
-                                )
-                            }
-                            className="shrink-0 rounded-md p-0.5 text-slate-400 transition-all duration-200 hover:scale-110 hover:bg-slate-50 hover:text-slate-700 active:scale-95"
-                            title={headerSecondary != null ? 'Copy plan' : 'Copy email'}
-                        >
-                            <Copy className="h-3 w-3" />
-                        </button>
-                    </div>
+                    {menuPlanLine !== undefined ? (
+                        <>
+                            <div className="flex items-center justify-between gap-1.5">
+                                <span className="text-[11px] text-slate-500 truncate" title={email}>
+                                    {email}
+                                </span>
+                                <button
+                                    type="button"
+                                    onClick={(e) => copyToClipboard(e, email, 'Email')}
+                                    className="shrink-0 rounded-md p-0.5 text-slate-400 transition-all duration-200 hover:scale-110 hover:bg-slate-50 hover:text-slate-700 active:scale-95"
+                                    title="Copy email"
+                                >
+                                    <Copy className="h-3 w-3" />
+                                </button>
+                            </div>
+                            <div className="flex items-center justify-between gap-1.5">
+                                <span
+                                    className="min-w-0 truncate text-[11px] text-slate-700"
+                                    title={menuPlanLine ?? undefined}
+                                >
+                                    <span className="font-medium text-slate-500">Plan:</span>{' '}
+                                    <span className="font-semibold text-slate-900">{menuPlanLine || '—'}</span>
+                                </span>
+                                <button
+                                    type="button"
+                                    onClick={(e) => copyToClipboard(e, menuPlanLine || '—', 'Plan')}
+                                    className="shrink-0 rounded-md p-0.5 text-slate-400 transition-all duration-200 hover:scale-110 hover:bg-slate-50 hover:text-slate-700 active:scale-95"
+                                    title="Copy plan"
+                                >
+                                    <Copy className="h-3 w-3" />
+                                </button>
+                            </div>
+                        </>
+                    ) : (
+                        <div className="flex items-center justify-between gap-1.5">
+                            <span
+                                className="text-[11px] text-slate-500 truncate"
+                                title={headerSecondary != null ? headerSecondary : email}
+                            >
+                                {headerSecondary != null ? headerSecondary : email}
+                            </span>
+                            <button
+                                type="button"
+                                onClick={(e) =>
+                                    copyToClipboard(
+                                        e,
+                                        headerSecondary != null ? headerSecondary : email,
+                                        headerSecondary != null ? 'Plan' : 'Email'
+                                    )
+                                }
+                                className="shrink-0 rounded-md p-0.5 text-slate-400 transition-all duration-200 hover:scale-110 hover:bg-slate-50 hover:text-slate-700 active:scale-95"
+                                title={headerSecondary != null ? 'Copy plan' : 'Copy email'}
+                            >
+                                <Copy className="h-3 w-3" />
+                            </button>
+                        </div>
+                    )}
                     {personaName && (
                         <p className="text-[10px] uppercase tracking-wider font-semibold text-slate-400 mt-0.5 truncate">
                             {personaName}
@@ -130,11 +171,7 @@ export function ProfileBubblePopupContent({
                     )}
                 </div>
             </div>
-            {footer && (
-                <div className="px-3 pb-3">
-                    {footer}
-                </div>
-            )}
+            {footer && <div className="border-t border-slate-200 px-3 pb-3 pt-2">{footer}</div>}
         </div>
     )
 }

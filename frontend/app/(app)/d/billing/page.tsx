@@ -4,14 +4,21 @@ import { createClient } from '@/utils/supabase/server'
 import { resolveDefaultFirmLandingPath } from '@/lib/actions/firms'
 import { BillingPageClient } from '@/components/billing/billing-page-client'
 
-export default async function BillingPage() {
+type Props = {
+    searchParams: Promise<{ from_checkout?: string }>
+}
+
+export default async function BillingPage({ searchParams }: Props) {
+    const sp = await searchParams
+    const fromCheckout = sp.from_checkout === '1'
+
     const supabase = await createClient()
     const {
         data: { user },
     } = await supabase.auth.getUser()
     if (user?.id) {
         const path = await resolveDefaultFirmLandingPath(user.id)
-        if (path === '/d/onboarding') {
+        if (path === '/d/onboarding' && !fromCheckout) {
             redirect('/d/onboarding')
         }
     }

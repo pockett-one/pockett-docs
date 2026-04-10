@@ -101,6 +101,7 @@ async function provisionPolarFreePlanForOnboardingFirm(
     firmId: firm.id,
     userEmail: input.userEmail,
     customerName,
+    userId: input.userId,
   })
 }
 
@@ -532,6 +533,14 @@ export async function runSandboxOnboarding(
   }
 }
 
+/**
+ * **Async Stage 1 (sandbox)** — invoked only from Inngest (`sandbox.provision.requested`), not from the
+ * create-sandbox HTTP handler. Creates Drive firm folder + engagement tree, DB clients/engagements/contacts,
+ * connector org map, enqueues sample documents + indexing (`sandbox.populate.sample-files.requested`),
+ * Polar free plan, then marks firm onboarding complete.
+ *
+ * The synchronous create-sandbox route only persists the firm row and enqueues this work.
+ */
 export async function provisionSandboxHierarchyForFirm(input: {
   firmId: string
   userId: string

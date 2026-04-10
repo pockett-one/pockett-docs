@@ -3,6 +3,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import type { BillingCatalogPlan } from '@/lib/billing/billing-catalog.types'
+import {
+    canonicalPlanGroupKey,
+    effectiveCatalogInterval,
+} from '@/lib/billing/catalog-plan-helpers'
 import { openPolarCustomerPortalSession } from '@/lib/billing/open-polar-customer-portal'
 import { buildPolarCheckoutHref } from '@/lib/billing/polar-checkout-href'
 import { upgradeCopy } from '@/lib/billing/upgrade-copy'
@@ -13,6 +17,7 @@ import { Button, buttonVariants } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { EmailInline } from '@/components/ui/email-inline'
 import { PLATFORM_SUPPORT_EMAIL } from '@/config/platform-emails'
+import { formatSubscriptionStatus } from '@/lib/billing/subscription-display'
 import { cn } from '@/lib/utils'
 import { Check, ChevronDown, ChevronUp, Clock, CreditCard, ExternalLink, Loader2, Rows3, Ticket } from 'lucide-react'
 
@@ -41,12 +46,178 @@ interface PolarPlansPickerProps {
      * Omit in dialogs / embeds until promoted to design tokens.
      */
     blueAccentTrial?: boolean
+    /** Hide the catalog free (one-time) product row when current plan is shown elsewhere. */
+    hideStandaloneFreePlan?: boolean
 }
 
-function planSort(a: BillingCatalogPlan, b: BillingCatalogPlan) {
-    const aFree = a.priceLabel === 'Free' ? 1 : 0
-    const bFree = b.priceLabel === 'Free' ? 1 : 0
-    return aFree - bFree
+const PRICING_PAGE_BILLING_TOGGLE_BTN =
+    'inline-flex items-center justify-center gap-0.5 whitespace-nowrap rounded-sm px-1.5 py-1 text-[9px] font-bold uppercase tracking-wide transition-all duration-200 leading-none sm:px-2 sm:py-1.5 sm:text-[10px] sm:tracking-wider'
+
+/** Track + segment chrome: billing peach trial vs neutral slate (matches checkout / trust cards). */
+function billingToggleTrackClass(peachAccent: boolean) {
+    return cn(
+        'inline-flex w-max max-w-[calc(100%-4.5rem)] shrink-0 items-stretch gap-0.5 rounded-md p-0.5',
+        peachAccent
+            ? 'border border-[#c49a82]/55 bg-gradient-to-b from-[#ECC0AA]/38 to-[#ECC0AA]/14 shadow-[inset_0_1px_3px_rgba(61,42,34,0.09)]'
+            : 'border border-[#9ea0a8]/50 bg-[#cfd1d9] shadow-[inset_0_1px_2px_rgba(15,23,42,0.1)]'
+    )
+}
+
+function billingToggleSegmentActive(peachAccent: boolean) {
+    return peachAccent
+        ? 'bg-white text-[#3d2a22] shadow-[0_2px_10px_rgba(236,192,170,0.45)] ring-1 ring-[#c49a82]/50'
+        : 'bg-white text-[#1b1b1d] shadow-[0_2px_8px_rgba(15,23,42,0.14),0_0_0_1px_rgba(15,23,42,0.06)]'
+}
+
+function billingToggleSegmentInactive(peachAccent: boolean) {
+    return peachAccent
+        ? 'text-[#7a5343]/88 hover:bg-white/40 hover:text-[#3d2a22]'
+        : 'text-[#3f4149] hover:bg-white/35 hover:text-[#1b1b1d]'
+}
+
+function planCardHeadingClass(compact: boolean) {
+    return cn('font-semibold tracking-tight text-slate-900', compact ? 'text-sm' : 'text-base')
+}
+
+type CatalogPlanRow =
+    | { kind: 'single'; plan: BillingCatalogPlan }
+    | { kind: 'group'; groupKey: string; name: string; variants: BillingCatalogPlan[] }
+
+function hasMonthAndYearVariants(variants: BillingCatalogPlan[]): boolean {
+    const s = new Set(
+        variants
+            .map((v) => effectiveCatalogInterval(v))
+            .filter((x): x is 'month' | 'year' => x === 'month' || x === 'year')
+    )
+    return s.has('month') && s.has('year')
+}
+
+function buildCatalogPlanRows(sortedPlans: BillingCatalogPlan[]): CatalogPlanRow[] {
+    const paidRecurring = sortedPlans.filter((p) => p.pricingModel === 'recurring_subscription')
+    const byName = new Map<string, BillingCatalogPlan[]>()
+    for (const p of paidRecurring) {
+        const k = canonicalPlanGroupKey(p.name)
+        const arr = byName.get(k) ?? []
+        arr.push(p)
+        byName.set(k, arr)
+    }
+
+    const mergedNames = new Set<string>()
+    for (const [name, arr] of Array.from(byName.entries())) {
+        if (arr.length >= 2 && hasMonthAndYearVariants(arr)) mergedNames.add(name)
+    }
+
+    const rows: CatalogPlanRow[] = []
+    const emitted = new Set<string>()
+    for (const p of sortedPlans) {
+        if (p.pricingModel !== 'recurring_subscription') {
+            rows.push({ kind: 'single', plan: p })
+            continue
+        }
+        const name = canonicalPlanGroupKey(p.name)
+        if (!mergedNames.has(name)) {
+            rows.push({ kind: 'single', plan: p })
+            continue
+        }
+        if (emitted.has(name)) continue
+        emitted.add(name)
+        const variants = byName.get(name)!
+        const displayName = variants[0]?.name?.trim() ?? name
+        rows.push({ kind: 'group', groupKey: name, name: displayName, variants })
+    }
+
+    return rows
+}
+
+function formatMoneyCents(cents: number, currency: string): string {
+    try {
+        return new Intl.NumberFormat(undefined, {
+            style: 'currency',
+            currency: currency.toUpperCase(),
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 2,
+        }).format(cents / 100)
+    } catch {
+        return `$${(cents / 100).toFixed(2)}`
+    }
+}
+
+/** Monthly equivalent in smallest currency units (for display as $X + Polar ` /mo`). */
+function monthlyEquivalentCents(plan: BillingCatalogPlan): number | null {
+    const n = plan.recurringAmountCents
+    if (n == null) return null
+    const iv = effectiveCatalogInterval(plan)
+    if (iv === 'month') return n
+    if (iv === 'year') return Math.round(n / 12)
+    return null
+}
+
+function isCatalogFreePlan(p: BillingCatalogPlan): boolean {
+    return p.priceLabel === 'Free'
+}
+
+/** Lowest monthly-equivalent cents per plan name group (monthly + annual variants share one rank). */
+function buildTierMinMonthlyCents(plans: BillingCatalogPlan[]): Map<string, number> {
+    const m = new Map<string, number>()
+    for (const p of plans) {
+        if (p.pricingModel !== 'recurring_subscription') continue
+        const eq = monthlyEquivalentCents(p)
+        if (eq == null) continue
+        const k = canonicalPlanGroupKey(p.name)
+        const cur = m.get(k)
+        if (cur == null || eq < cur) m.set(k, eq)
+    }
+    return m
+}
+
+function intervalTierSortOrder(p: BillingCatalogPlan): number {
+    const iv = effectiveCatalogInterval(p)
+    if (iv === 'month') return 0
+    if (iv === 'year') return 1
+    return 9
+}
+
+/**
+ * Free plans first, then paid recurring tiers by lowest monthly equivalent (Standard before Pro),
+ * then other one-time products. Within a tier: monthly variant before annual.
+ */
+function compareCatalogPlans(
+    a: BillingCatalogPlan,
+    b: BillingCatalogPlan,
+    tierMinMonthly: Map<string, number>
+): number {
+    const aFree = isCatalogFreePlan(a)
+    const bFree = isCatalogFreePlan(b)
+    if (aFree !== bFree) return aFree ? -1 : 1
+
+    const paidRank = (p: BillingCatalogPlan): number => {
+        if (isCatalogFreePlan(p)) return -1
+        if (p.pricingModel === 'recurring_subscription') {
+            const k = canonicalPlanGroupKey(p.name)
+            return tierMinMonthly.get(k) ?? Number.MAX_SAFE_INTEGER
+        }
+        // Non-free one-time (unusual): after all recurring tiers
+        const cents = p.recurringAmountCents
+        return 1_000_000_000 + (cents != null && cents >= 0 ? cents : 0)
+    }
+
+    const ra = paidRank(a)
+    const rb = paidRank(b)
+    if (ra !== rb) return ra - rb
+
+    const ga = canonicalPlanGroupKey(a.name)
+    const gb = canonicalPlanGroupKey(b.name)
+    const nameCmp = ga.localeCompare(gb)
+    if (nameCmp !== 0) return nameCmp
+
+    return intervalTierSortOrder(a) - intervalTierSortOrder(b)
+}
+
+function savingsPercentAnnualVsMonthly(monthlyCents: number, annualPeriodCents: number): number | null {
+    if (monthlyCents <= 0 || annualPeriodCents <= 0) return null
+    const annualPerMonth = Math.round(annualPeriodCents / 12)
+    if (annualPerMonth >= monthlyCents) return null
+    return Math.max(0, Math.round((1 - annualPerMonth / monthlyCents) * 100))
 }
 
 /** Shared panel: Polar trust copy + portal actions or Compare plans (inside Billing & plans card). */
@@ -212,17 +383,24 @@ function pricingPlanIdFromCatalogName(name: string): PricingPlanColumnId | null 
     return null
 }
 
-function formatStatus(status: string | null | undefined): string {
-    if (!status || status === 'none') return 'Setup pending'
-    return status
-        .split('_')
-        .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
-        .join(' ')
-}
-
 function withBrandName(text: string | null | undefined): string {
     if (!text) return ''
     return text.replace(/\bfirma\b/gi, BRAND_NAME)
+}
+
+/** Polar-style monthly suffix (space + `/mo`, same as Polar checkout UI). */
+const POLAR_MONTHLY_FREQ_LABEL = ' / mo'
+
+/** Map `/month`, `/mo`, `per month`, etc. → Polar-style {@link POLAR_MONTHLY_FREQ_LABEL}. */
+function normalizeMonthlyIntervalSuffix(intervalTail: string): string {
+    const raw = intervalTail.trim()
+    if (!raw) return raw
+    const compact = raw.replace(/\s+/g, ' ')
+    const lower = compact.toLowerCase()
+    if (lower.includes('/month')) return POLAR_MONTHLY_FREQ_LABEL
+    if (/\/\s*mo\b/i.test(compact) || /\/\s*m\b/i.test(compact)) return POLAR_MONTHLY_FREQ_LABEL
+    if (/\bper\s*month\b/i.test(compact) || /\bmonthly\b/i.test(compact)) return POLAR_MONTHLY_FREQ_LABEL
+    return raw
 }
 
 /** Split Polar price labels like "$49 /mo" for clearer numeric hierarchy. */
@@ -236,7 +414,7 @@ function PlanPriceDisplay({
     peachAmount?: boolean
 }) {
     const t = label.trim()
-    const priced = t.match(/^(\$)([\d,.]+)(\s+)(\/.+|per\s+.+|\/\s*.+)$/i)
+    const priced = t.match(/^(\$)\s*([\d,.]+)\s+(\/.+|per\s+.+|\/\s*.+)$/i)
     if (t === 'Free') {
         return (
             <span
@@ -251,7 +429,14 @@ function PlanPriceDisplay({
         )
     }
     if (priced) {
-        const [, currency, amount, , intervalTail] = priced
+        const [, currency, amount, intervalTail] = priced
+        const intervalDisplay = normalizeMonthlyIntervalSuffix(intervalTail)
+        const intervalGap =
+            intervalDisplay.startsWith(' ') || intervalDisplay === POLAR_MONTHLY_FREQ_LABEL
+                ? ''
+                : compact
+                  ? 'ml-1'
+                  : 'ml-1.5'
         return (
             <span className="inline-flex flex-wrap items-baseline">
                 <span
@@ -276,10 +461,11 @@ function PlanPriceDisplay({
                     className={cn(
                         'font-medium tabular-nums font-mono tracking-wide',
                         peachAmount ? 'text-[#7a5343]/85' : 'text-slate-600',
-                        compact ? 'ml-1 text-xs' : 'ml-1.5 text-sm'
+                        compact ? 'text-xs' : 'text-sm',
+                        intervalGap
                     )}
                 >
-                    {intervalTail.trim()}
+                    {intervalDisplay}
                 </span>
             </span>
         )
@@ -293,6 +479,58 @@ function PlanPriceDisplay({
         >
             {label}
         </span>
+    )
+}
+
+/**
+ * Polar catalog grouped plans: always show a **monthly** headline (annual = total÷12),
+ * plus marketing-style “Billed annually” under the price when Annual is selected
+ * (same pattern as static `/pricing`).
+ */
+function CatalogGroupedPriceDisplay({
+    monthlyEquivCents,
+    currency,
+    billingPeriod,
+    compact,
+    peachAmount,
+}: {
+    monthlyEquivCents: number
+    currency: string
+    billingPeriod: 'monthly' | 'annual'
+    compact: boolean
+    peachAmount?: boolean
+}) {
+    const full = formatMoneyCents(monthlyEquivCents, currency)
+    return (
+        <div className="min-w-0">
+            <span className="inline-flex flex-wrap items-baseline gap-0">
+                <span
+                    className={cn(
+                        'font-bold tabular-nums tracking-tight',
+                        peachAmount ? 'text-[#6b4538]' : 'text-slate-950',
+                        compact ? 'text-xl' : 'text-[1.625rem] leading-[1.1]'
+                    )}
+                >
+                    {full}
+                </span>
+                <span
+                    className={cn(
+                        'font-medium tabular-nums',
+                        peachAmount ? 'text-[#7a5343]/85' : 'text-slate-600',
+                        compact ? 'text-xs' : 'text-sm'
+                    )}
+                >
+                    {POLAR_MONTHLY_FREQ_LABEL}
+                </span>
+            </span>
+            {billingPeriod === 'annual' ? (
+                <p className={cn('mt-1 text-xs', peachAmount ? 'text-[#7a5343]/85' : 'text-slate-500')}>
+                    Billed annually
+                </p>
+            ) : (
+                <div className={compact ? 'mt-1 h-3' : 'mt-1 h-4'} aria-hidden />
+            )}
+        </div>
     )
 }
 
@@ -360,12 +598,15 @@ export function PolarPlansPicker({
     density = 'default',
     className,
     blueAccentTrial,
+    hideStandaloneFreePlan = false,
 }: PolarPlansPickerProps) {
     const [plans, setPlans] = useState<BillingCatalogPlan[] | null>(null)
     const [error, setError] = useState<string | null>(null)
     const [loading, setLoading] = useState(true)
     const [portalLoading, setPortalLoading] = useState(false)
     const [portalError, setPortalError] = useState<string | null>(null)
+    /** Same semantics as static `/pricing`: `annual` = show monthly equivalent + “Billed annually”. */
+    const [groupBilling, setGroupBilling] = useState<Record<string, 'monthly' | 'annual'>>({})
 
     useEffect(() => {
         let cancelled = false
@@ -393,7 +634,79 @@ export function PolarPlansPicker({
         }
     }, [])
 
-    const sortedPlans = useMemo(() => (plans?.length ? [...plans].sort(planSort) : null), [plans])
+    const sortedPlans = useMemo(() => {
+        if (!plans?.length) return null
+        const tierMinMonthly = buildTierMinMonthlyCents(plans)
+        return [...plans].sort((a, b) => compareCatalogPlans(a, b, tierMinMonthly))
+    }, [plans])
+    const planRows = useMemo(
+        () => (sortedPlans?.length ? buildCatalogPlanRows(sortedPlans) : null),
+        [sortedPlans]
+    )
+
+    const visiblePlanRows = useMemo(() => {
+        if (!planRows?.length) return null
+        if (!hideStandaloneFreePlan) return planRows
+        return planRows.filter((row) => {
+            if (row.kind !== 'single') return true
+            const p = row.plan
+            if (p.pricingModel !== 'one_time_purchase') return true
+            return p.priceLabel !== 'Free'
+        })
+    }, [planRows, hideStandaloneFreePlan])
+
+    const currentPlanId = useMemo(() => {
+        if (!sortedPlans?.length || !currentPlanState) return null
+        const normalizedStatus = (currentPlanState.subscriptionStatus ?? '').toLowerCase()
+        const paidPlans = sortedPlans.filter((p) => p.pricingModel === 'recurring_subscription')
+        const freeLikePlans = sortedPlans.filter((p) => p.pricingModel === 'one_time_purchase')
+        const paidIdMatch = paidPlans.find((p) => p.id === currentPlanState.subscriptionProductId)
+        const paidMatch = paidPlans.find((p) => namesLikelyMatch(p.name, currentPlanState.subscriptionPlan))
+        const hasPaidMatch = Boolean(paidIdMatch || paidMatch)
+        const isActiveLikeStatus = ['active', 'trialing', 'past_due'].includes(normalizedStatus)
+        const isPaidRecurringCurrent =
+            (currentPlanState.pricingModel === 'recurring_subscription' && isActiveLikeStatus) ||
+            (hasPaidMatch && !['canceled', 'none'].includes(normalizedStatus))
+        return isPaidRecurringCurrent
+            ? (paidIdMatch?.id ?? paidMatch?.id ?? (paidPlans.length === 1 ? paidPlans[0]?.id : null))
+            : currentPlanState.pricingModel === 'one_time_purchase'
+              ? (freeLikePlans.find((p) => p.priceLabel === 'Free')?.id ?? freeLikePlans[0]?.id ?? null)
+              : null
+    }, [sortedPlans, currentPlanState])
+
+    /** Default new groups to Annual (matches marketing pricing page default). */
+    useEffect(() => {
+        if (!planRows?.length) return
+        setGroupBilling((prev) => {
+            let changed = false
+            const next = { ...prev }
+            for (const row of planRows) {
+                if (row.kind !== 'group') continue
+                if (next[row.groupKey] != null) continue
+                next[row.groupKey] = 'annual'
+                changed = true
+            }
+            return changed ? next : prev
+        })
+    }, [planRows])
+
+    /** Sync toggle when the active subscription matches one of the Polar products in a group. */
+    useEffect(() => {
+        if (!planRows?.length || !currentPlanId) return
+        for (const row of planRows) {
+            if (row.kind !== 'group') continue
+            const hit = row.variants.find((v) => v.id === currentPlanId)
+            if (!hit?.recurringInterval) continue
+            const hitIv = effectiveCatalogInterval(hit)
+            const seg =
+                hitIv === 'year' ? 'annual' : hitIv === 'month' ? 'monthly' : null
+            if (!seg) continue
+            setGroupBilling((prev) => {
+                if (prev[row.groupKey] === seg) return prev
+                return { ...prev, [row.groupKey]: seg }
+            })
+        }
+    }, [currentPlanId, planRows])
 
     if (!firmId) {
         return <p className="text-sm text-slate-600">{upgradeCopy.planPickerMissingFirm}</p>
@@ -462,11 +775,6 @@ export function PolarPlansPicker({
     const isPaidRecurringCurrent =
         (currentPlanState?.pricingModel === 'recurring_subscription' && isActiveLikeStatus) ||
         (hasPaidMatch && !['canceled', 'none'].includes(normalizedStatus))
-    const currentPlanId = isPaidRecurringCurrent
-        ? (paidIdMatch?.id ?? paidMatch?.id ?? (paidPlans.length === 1 ? paidPlans[0]?.id : null))
-        : currentPlanState?.pricingModel === 'one_time_purchase'
-            ? (freeLikePlans.find((p) => p.priceLabel === 'Free')?.id ?? freeLikePlans[0]?.id ?? null)
-            : null
     const portalSwitchUi = isPaidRecurringCurrent
     const isFirmBillingAdmin = Boolean(currentPlanState?.isFirmBillingAdmin)
     const canOpenCustomerPortal = Boolean(currentPlanState?.canOpenCustomerPortal)
@@ -545,7 +853,349 @@ export function PolarPlansPicker({
                 ) : null}
             </div>
             <ul className="grid grid-cols-1 gap-5 pt-2 lg:grid-cols-2 lg:items-stretch lg:gap-6">
-                {sortedPlans.map((plan) => {
+                {visiblePlanRows?.map((row) => {
+                    if (row.kind === 'group') {
+                        const period = groupBilling[row.groupKey] ?? 'annual'
+                        const monthlyV = row.variants.find((v) => effectiveCatalogInterval(v) === 'month')
+                        const annualV = row.variants.find((v) => effectiveCatalogInterval(v) === 'year')
+                        const selectedPlan =
+                            period === 'annual' ? annualV ?? monthlyV : monthlyV ?? annualV
+                        if (!selectedPlan) return null
+                        const savings =
+                            monthlyV?.recurringAmountCents != null &&
+                            annualV?.recurringAmountCents != null
+                                ? savingsPercentAnnualVsMonthly(
+                                      monthlyV.recurringAmountCents,
+                                      annualV.recurringAmountCents
+                                  )
+                                : null
+                        const eqCents = monthlyEquivalentCents(selectedPlan)
+                        const isCurrentPlan = currentPlanId === selectedPlan.id
+                        const isTrialingCurrentPlan =
+                            isCurrentPlan &&
+                            (currentPlanState?.subscriptionStatus ?? '').toLowerCase() === 'trialing' &&
+                            Boolean(currentPlanState?.periodEndIso)
+                        const currentPlanPeriodEnd = currentPlanState?.periodEndIso
+                            ? new Date(currentPlanState.periodEndIso).toLocaleDateString(undefined, {
+                                  dateStyle: 'medium',
+                              })
+                            : null
+                        const pricingPlanId = pricingPlanIdFromCatalogName(row.name)
+                        const planHighlights = pricingPlanId
+                            ? getPricingComparisonBulletsForPlan(pricingPlanId)
+                            : []
+                        const checkoutHref = buildPolarCheckoutHref({
+                            firmId,
+                            returnTo: returnPath,
+                            productId: selectedPlan.id,
+                        })
+                        return (
+                            <li key={`group:${row.groupKey}`} className="relative pt-3">
+                                {!isCurrentPlan && selectedPlan.isRecommended ? (
+                                    <div className="pointer-events-none absolute left-1/2 top-0 z-30 -translate-x-1/2">
+                                        <span
+                                            className={cn(
+                                                'inline-flex items-center rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-wider shadow-md',
+                                                blueAccentTrial
+                                                    ? 'border-[#b88972]/60 bg-[#ECC0AA] text-[#3d2a22]'
+                                                    : 'border-slate-300/80 bg-slate-700 text-white'
+                                            )}
+                                        >
+                                            {upgradeCopy.billingRecommendedBadge}
+                                        </span>
+                                    </div>
+                                ) : null}
+                                <article
+                                    className={cn(
+                                        planCardBase,
+                                        'hover:shadow-[0_8px_24px_-8px_rgba(15,23,42,0.1),0_20px_48px_-16px_rgba(15,23,42,0.12)]',
+                                        blueAccentTrial
+                                            ? 'border-[#ECC0AA]/42 ring-[#ECC0AA]/22 hover:border-[#d4a892] hover:ring-[#ECC0AA]/35'
+                                            : 'border-slate-200/90 hover:border-slate-300/90 hover:ring-slate-200/40',
+                                        blueAccentTrial && isCurrentPlan && 'bg-[#ECC0AA]/10',
+                                        blueAccentTrial &&
+                                            isCurrentPlan &&
+                                            'before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:z-10 before:h-1 before:rounded-t-[1rem] before:bg-[#ECC0AA]'
+                                    )}
+                                >
+                                    <div className={cn('flex flex-1 flex-col', compact ? 'p-4' : 'p-5 sm:p-6')}>
+                                        <div>
+                                            <div className="flex items-start justify-between gap-2 sm:gap-3">
+                                                <h3
+                                                    className={cn(
+                                                        planCardHeadingClass(compact),
+                                                        'min-w-0 flex-1 leading-snug'
+                                                    )}
+                                                >
+                                                    {row.name}
+                                                </h3>
+                                                <div
+                                                    className={cn(
+                                                        billingToggleTrackClass(Boolean(blueAccentTrial)),
+                                                        'shrink-0'
+                                                    )}
+                                                    role="group"
+                                                    aria-label={`Billing period for ${row.name}`}
+                                                >
+                                                    <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                            setGroupBilling((p) => ({
+                                                                ...p,
+                                                                [row.groupKey]: 'annual',
+                                                            }))
+                                                        }
+                                                        className={cn(
+                                                            PRICING_PAGE_BILLING_TOGGLE_BTN,
+                                                            period === 'annual'
+                                                                ? billingToggleSegmentActive(Boolean(blueAccentTrial))
+                                                                : billingToggleSegmentInactive(Boolean(blueAccentTrial))
+                                                        )}
+                                                    >
+                                                        <span>Annual</span>
+                                                        {savings != null && savings > 0 ? (
+                                                            <span
+                                                                className={cn(
+                                                                    'text-[8px] font-bold leading-none sm:text-[9px]',
+                                                                    blueAccentTrial
+                                                                        ? 'text-emerald-700'
+                                                                        : 'text-[#006e16]'
+                                                                )}
+                                                                aria-hidden
+                                                            >{`${savings}% off`}</span>
+                                                        ) : null}
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                            setGroupBilling((p) => ({
+                                                                ...p,
+                                                                [row.groupKey]: 'monthly',
+                                                            }))
+                                                        }
+                                                        className={cn(
+                                                            PRICING_PAGE_BILLING_TOGGLE_BTN,
+                                                            period === 'monthly'
+                                                                ? billingToggleSegmentActive(Boolean(blueAccentTrial))
+                                                                : billingToggleSegmentInactive(Boolean(blueAccentTrial))
+                                                        )}
+                                                    >
+                                                        Monthly
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <div
+                                                className={cn(
+                                                    'mt-2 items-start gap-x-4 gap-y-1',
+                                                    isCurrentPlan
+                                                        ? 'grid grid-cols-[minmax(0,1fr)_auto]'
+                                                        : 'block'
+                                                )}
+                                            >
+                                                    <div className="min-w-0 leading-none">
+                                                        {eqCents != null ? (
+                                                            <CatalogGroupedPriceDisplay
+                                                                monthlyEquivCents={eqCents}
+                                                                currency={selectedPlan.priceCurrency}
+                                                                billingPeriod={period}
+                                                                compact={compact}
+                                                                peachAmount={blueAccentTrial}
+                                                            />
+                                                        ) : (
+                                                            <PlanPriceDisplay
+                                                                label={selectedPlan.priceLabel}
+                                                                compact={compact}
+                                                                peachAmount={blueAccentTrial}
+                                                            />
+                                                        )}
+                                                    </div>
+                                                    {isCurrentPlan ? (
+                                                    <div className="flex min-w-[7.5rem] max-w-[11rem] shrink-0 flex-col gap-1.5 text-xs sm:min-w-[8.5rem] sm:text-sm">
+                                                        <TooltipProvider delayDuration={200}>
+                                                            <div className="grid grid-cols-[1rem_1fr] items-center gap-2">
+                                                                <Tooltip>
+                                                                    <TooltipTrigger asChild>
+                                                                        <span className="inline-flex h-4 w-4 items-center justify-center">
+                                                                            <Ticket
+                                                                                className={cn(
+                                                                                    'h-4 w-4 shrink-0',
+                                                                                    blueAccentTrial
+                                                                                        ? 'text-[#c17a54]'
+                                                                                        : 'text-slate-400'
+                                                                                )}
+                                                                                strokeWidth={2.25}
+                                                                                aria-hidden
+                                                                            />
+                                                                        </span>
+                                                                    </TooltipTrigger>
+                                                                    <TooltipContent
+                                                                        variant="light"
+                                                                        side="top"
+                                                                        align="start"
+                                                                    >
+                                                                        Subscription status
+                                                                    </TooltipContent>
+                                                                </Tooltip>
+                                                                <span
+                                                                    className={cn(
+                                                                        'text-sm font-medium',
+                                                                        blueAccentTrial
+                                                                            ? 'text-[#7a5343]'
+                                                                            : 'text-slate-600'
+                                                                    )}
+                                                                >
+                                                                    {formatSubscriptionStatus(currentPlanState?.subscriptionStatus)}
+                                                                </span>
+                                                            </div>
+                                                        </TooltipProvider>
+                                                        {currentPlanPeriodEnd ? (
+                                                            <TooltipProvider delayDuration={200}>
+                                                                <div className="grid grid-cols-[1rem_1fr] items-center gap-2">
+                                                                    <Tooltip>
+                                                                        <TooltipTrigger asChild>
+                                                                            <span className="inline-flex h-4 w-4 items-center justify-center">
+                                                                                <Clock
+                                                                                    className={cn(
+                                                                                        'h-4 w-4 shrink-0',
+                                                                                        blueAccentTrial
+                                                                                            ? 'text-[#c17a54]'
+                                                                                            : 'text-slate-400'
+                                                                                    )}
+                                                                                    strokeWidth={2.25}
+                                                                                    aria-hidden
+                                                                                />
+                                                                            </span>
+                                                                        </TooltipTrigger>
+                                                                        <TooltipContent
+                                                                            variant="light"
+                                                                            side="top"
+                                                                            align="start"
+                                                                        >
+                                                                            {isTrialingCurrentPlan
+                                                                                ? 'Trial ends on'
+                                                                                : 'Renews on'}
+                                                                        </TooltipContent>
+                                                                    </Tooltip>
+                                                                    <span className="text-sm font-medium text-slate-900 tabular-nums">
+                                                                        {currentPlanPeriodEnd}
+                                                                    </span>
+                                                                </div>
+                                                            </TooltipProvider>
+                                                        ) : (
+                                                            <div
+                                                                className="grid grid-cols-[1rem_1fr] items-center gap-2 opacity-0"
+                                                                aria-hidden
+                                                            >
+                                                                <span className="h-4 w-4" />
+                                                                <span className="text-sm font-medium tabular-nums">
+                                                                    —
+                                                                </span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                ) : null}
+                                                </div>
+                                        </div>
+
+                                        {selectedPlan.description ? (
+                                            <p
+                                                className={cn(
+                                                    'mt-2 leading-relaxed text-slate-600',
+                                                    compact ? 'text-xs line-clamp-3 sm:text-sm' : 'text-sm'
+                                                )}
+                                            >
+                                                {withBrandName(selectedPlan.description)}
+                                            </p>
+                                        ) : null}
+
+                                        {!compact && planHighlights.length > 0 ? (
+                                            <div
+                                                className={cn(
+                                                    'mt-5 border-t pt-5',
+                                                    blueAccentTrial ? 'border-[#ECC0AA]/28' : 'border-slate-100'
+                                                )}
+                                            >
+                                                <PlanHighlightsScroll
+                                                    lines={planHighlights}
+                                                    checkIconClassName={highlightCheckClass}
+                                                    peachScrollbar={blueAccentTrial}
+                                                />
+                                            </div>
+                                        ) : null}
+
+                                        <div className="mt-auto pt-6">
+                                            {isCurrentPlan ? (
+                                                showPortalButton ? (
+                                                    <Button
+                                                        type="button"
+                                                        variant="manageBillingCta"
+                                                        className={cn(
+                                                            'h-11 w-full rounded-lg',
+                                                            blueAccentTrial &&
+                                                                '!border-[#c49a82] !bg-[#ECC0AA]/40 !text-[#3d2a22] hover:!border-[#b07d62] hover:!bg-[#ECC0AA]/65 hover:!text-[#241814]'
+                                                        )}
+                                                        disabled={portalLoading}
+                                                        onClick={() => void openBillingPortal()}
+                                                    >
+                                                        <span className="relative z-10">
+                                                            <span className="inline-flex items-center justify-center gap-2">
+                                                                <CreditCard className="h-4 w-4 opacity-90" aria-hidden />
+                                                                {portalLoading
+                                                                    ? upgradeCopy.billingPortalOpening
+                                                                    : upgradeCopy.billingPortalManageSubscriptionCta}
+                                                            </span>
+                                                        </span>
+                                                    </Button>
+                                                ) : (
+                                                    <div
+                                                        className={cn(
+                                                            'rounded-xl border px-4 py-3 text-center shadow-sm',
+                                                            blueAccentTrial
+                                                                ? 'border-[#ECC0AA]/60 bg-[#ECC0AA]/22 shadow-[0_2px_12px_-6px_rgba(236,192,170,0.45)]'
+                                                                : 'border-slate-200/80 bg-white/90'
+                                                        )}
+                                                    >
+                                                        <p
+                                                            className={cn(
+                                                                'text-sm font-medium',
+                                                                blueAccentTrial ? 'text-[#7a5343]' : 'text-slate-800'
+                                                            )}
+                                                        >
+                                                            {upgradeCopy.planPickerCurrentPlanBadge}
+                                                        </p>
+                                                    </div>
+                                                )
+                                            ) : isFirmBillingAdmin ? (
+                                                <Button
+                                                    type="button"
+                                                    variant={blueAccentTrial ? 'outline' : 'blackCta'}
+                                                    className={cn(
+                                                        'h-11 w-full',
+                                                        blueAccentTrial
+                                                            ? polarBillingPeachCtaClass
+                                                            : polarBillingCtaButtonClass
+                                                    )}
+                                                    onClick={() => {
+                                                        window.location.assign(checkoutHref)
+                                                    }}
+                                                >
+                                                    <span className="relative z-10">
+                                                        <span className="inline-flex items-center justify-center gap-2">
+                                                            <CreditCard className="h-4 w-4 opacity-90" aria-hidden />
+                                                            {isPaidRecurringCurrent
+                                                                ? upgradeCopy.planPickerSwitchPlanCta
+                                                                : upgradeCopy.planPickerCta}
+                                                        </span>
+                                                    </span>
+                                                </Button>
+                                            ) : null}
+                                        </div>
+                                    </div>
+                                </article>
+                            </li>
+                        )
+                    }
+                    const plan = row.plan
                     const isFreeTier = plan.priceLabel === 'Free'
                     const isCurrentPlan = currentPlanId === plan.id
                     const isTrialingCurrentPlan =
@@ -604,12 +1254,7 @@ export function PolarPlansPicker({
                                 <div className={cn('flex flex-1 flex-col', compact ? 'p-4' : 'p-5 sm:p-6')}>
                                     {isFreeTier ? (
                                         <>
-                                            <h3
-                                                className={cn(
-                                                    'font-semibold tracking-tight text-slate-900',
-                                                    compact ? 'text-base' : 'text-lg'
-                                                )}
-                                            >
+                                            <h3 className={planCardHeadingClass(compact)}>
                                                 {plan.name}
                                             </h3>
                                             <p className="mt-2">
@@ -624,8 +1269,8 @@ export function PolarPlansPicker({
                                         <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-2">
                                             <h3
                                                 className={cn(
-                                                    'col-start-1 row-start-1 min-w-0 font-semibold tracking-tight text-slate-900',
-                                                    compact ? 'text-base' : 'text-lg'
+                                                    planCardHeadingClass(compact),
+                                                    'col-start-1 row-start-1 min-w-0'
                                                 )}
                                             >
                                                 {plan.name}
@@ -665,7 +1310,7 @@ export function PolarPlansPicker({
                                                                         blueAccentTrial ? 'text-[#7a5343]' : 'text-slate-600'
                                                                     )}
                                                                 >
-                                                                    {formatStatus(currentPlanState?.subscriptionStatus)}
+                                                                    {formatSubscriptionStatus(currentPlanState?.subscriptionStatus)}
                                                                 </span>
                                                             </div>
                                                         </TooltipProvider>

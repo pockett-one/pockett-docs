@@ -15,9 +15,8 @@ type GoogleDriveProductMarkProps = Omit<React.ImgHTMLAttributes<HTMLImageElement
 }
 
 /**
- * Google-supplied Drive product mark (PNG). Prefer this on marketing surfaces next to
- * “Google Drive” copy so heroes match Trust Architecture; use {@link GoogleDriveIcon}
- * only where a small inline SVG is required (e.g. dense UI).
+ * Google-supplied Drive product mark (PNG). Used on marketing and in-app UI via
+ * {@link GoogleDriveIcon} so the mark matches Trust Architecture everywhere.
  */
 export function GoogleDriveProductMark({
   className,
@@ -41,25 +40,18 @@ export function GoogleDriveProductMark({
 }
 
 /**
- * Inline SVG approximation of the Drive logo — triangular design with Google brand colors.
- * Blue (#4285F4), Green (#34A853), Yellow (#FBBC05).
+ * Same 48dp product mark as the landing page ({@link GoogleDriveProductMark}), scaled for inline UI.
  */
 export function GoogleDriveIcon({ size = 20, className = "" }: GoogleDriveIconProps) {
   return (
-    <svg
+    <img
+      src={GOOGLE_DRIVE_PRODUCT_MARK_SRC}
+      alt=""
       width={size}
       height={size}
-      viewBox="0 0 24 21"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      className={className}
-    >
-      {/* Blue - top triangle (Google blue) */}
-      <path fill="#4285F4" d="M12 0L4 14H20L12 0Z" />
-      {/* Green - bottom left (Google green) */}
-      <path fill="#34A853" d="M4 14L0 21H12L12 14L4 14Z" />
-      {/* Yellow - bottom right (Google yellow) */}
-      <path fill="#FBBC05" d="M20 14L12 14V21H24V14L20 14Z" />
-    </svg>
+      decoding="async"
+      className={cn("object-contain shrink-0", className)}
+      aria-hidden
+    />
   )
 }
