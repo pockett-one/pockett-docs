@@ -271,6 +271,7 @@ const OnboardingContent = () => {
     const { session, user } = useAuth()
     const router = useRouter()
     const searchParams = useSearchParams()
+    const paidPlanIntent = searchParams.get('paid_plan') === 'true'
     const { setOnboarding, markStepSkipped } = useOnboarding()
     const { addToast } = useToast()
 
@@ -392,9 +393,21 @@ const OnboardingContent = () => {
     }, [defaultOrgSlug, newOrgSlug, existingOrg?.slug])
 
     const handleFinish = useCallback(async () => {
+        if (paidPlanIntent) {
+            const targetPath = await resolvePostOnboardingPath()
+            const params = new URLSearchParams()
+            params.set('paid_plan', 'true')
+            const slugMatch = targetPath.match(/^\/d\/f\/([^/]+)/)
+            if (slugMatch?.[1]) {
+                params.set('firmSlug', slugMatch[1])
+                params.set('returnTo', targetPath)
+            }
+            router.replace(`/d/profile/billing?${params.toString()}`)
+            return
+        }
         const targetPath = await resolvePostOnboardingPath()
         router.replace(targetPath)
-    }, [resolvePostOnboardingPath, router])
+    }, [paidPlanIntent, resolvePostOnboardingPath, router])
 
     const handleConnectDrive = useCallback(async (e?: any) => {
         e?.preventDefault()
@@ -868,47 +881,21 @@ const OnboardingContent = () => {
             setTimeout(() => setActiveTerminalIndex(2), 800)
             setTimeout(() => setActiveTerminalIndex(3), 2000)
 
-            const res = await fetch('/api/onboarding/import-orgs', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({
-                    connectionId: connectionDetails?.connectionId,
-                    selectedOrgIds: selectedOrgIds,
-                    newOrgName: orgName.trim() ? orgName : undefined,
-                    allowDomainAccess
-                })
-            })
-
-            if (res.ok) {
-                const data = await res.json()
-                setNewOrgSlug(data.defaultOrgSlug)
-                setDefaultOrgSlug(data.defaultOrgSlug)
-                setNewOrgCreated(true)
-                if (data.organizationId) {
-                    setCreatedOrgId(data.organizationId)
+            // Import is intentionally skipped in the revised flow.
+            // We keep the UX step for now but avoid backend import invocation.
+            setActiveTerminalIndex(4)
+            setTimeout(() => setActiveTerminalIndex(5), 300)
+            setTimeout(() => setActiveTerminalIndex(6), 600)
+            setTimeout(async () => {
+                try {
+                    await supabase.auth.refreshSession()
+                    await buildUserSettingsPlus()
+                } catch (err) {
+                    logger.warn('Session/cache refresh after import skip failed', err as Error)
                 }
-
-                setActiveTerminalIndex(4)
-                setTimeout(() => setActiveTerminalIndex(5), 400)
-                setTimeout(() => setActiveTerminalIndex(6), 800)
-                setTimeout(async () => {
-                    try {
-                        await supabase.auth.refreshSession()
-                        await buildUserSettingsPlus()
-                    } catch (err) {
-                        logger.warn('Session/cache refresh after import failed', err as Error)
-                    }
-                    setImportingOrgs(false)
-                    await handleFinish()
-                }, 1500)
-            } else {
-                const err = await res.json()
-                setError(err.error || 'Failed to import organizations')
                 setImportingOrgs(false)
-            }
+                await handleFinish()
+            }, 1200)
         } catch (err: any) {
             setError(err.message || 'Failed to import organizations')
             logger.error('Error importing orgs', err as Error)

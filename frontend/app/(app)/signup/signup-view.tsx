@@ -18,9 +18,6 @@ const B = '[font-family:var(--font-kinetic-body),system-ui,sans-serif]'
 const KINETIC_HERO_LEAD =
   'Stop sending raw Drive links. Deliver a white-glove client experience on top of the storage you already trust — non-custodial, with revoke-on-close discipline for your IP.'
 
-/** Fixed height for the sign-up panel (~1.5× a typical ~480px form stack). */
-const SIGNUP_CARD_HEIGHT_PX = 720
-
 export function SignupView() {
   const [step, setStep] = useState<SignupStepKey>('info')
   const [progressIndex, setProgressIndex] = useState(0)
@@ -112,15 +109,12 @@ export function SignupView() {
           </div>
         </section>
 
-        {/* Right: vertically centered light card */}
+        {/* Right: same shell as /signin — card fills column height (flex-1 + md:h-full) */}
         <section
-          className={`flex min-h-screen w-full min-w-0 flex-col justify-center overflow-x-hidden px-5 py-12 md:h-full md:min-h-0 md:max-h-full md:w-1/2 md:overflow-hidden md:px-10 md:py-16 lg:w-2/5 lg:px-12 ${B}`}
+          className={`flex min-h-0 w-full min-w-0 flex-col justify-center overflow-x-hidden px-5 py-10 md:h-full md:max-h-full md:w-1/2 md:overflow-hidden md:px-10 md:py-12 lg:w-2/5 lg:px-12 ${B}`}
         >
           <div className="mx-auto flex w-full min-w-0 max-w-md flex-col md:h-full md:min-h-0 md:max-h-full">
-            <div
-              className="flex h-full min-h-0 flex-col overflow-hidden border border-black/[0.06] bg-white px-8 py-10 shadow-[0_24px_60px_-16px_rgba(27,27,29,0.14)] sm:px-10 sm:py-12"
-              style={{ height: SIGNUP_CARD_HEIGHT_PX }}
-            >
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden border border-black/[0.06] bg-white px-8 py-9 shadow-[0_24px_60px_-16px_rgba(27,27,29,0.14)] sm:px-10 sm:py-11 md:max-h-full">
               {/* Top: logo (left) + separator */}
               <div className="shrink-0">
                 <div className="flex justify-start">
@@ -171,7 +165,7 @@ export function SignupView() {
               </div>
             </div>
 
-            <footer className="mt-10 flex flex-col items-center justify-between gap-4 text-[10px] uppercase tracking-widest text-[#45474c]/60 sm:flex-row sm:gap-6">
+            <footer className="mt-8 flex flex-col items-center justify-between gap-4 text-[10px] uppercase tracking-widest text-[#45474c]/60 sm:mt-10 sm:flex-row sm:gap-6">
               <div className="flex flex-wrap justify-center gap-6 sm:justify-start">
                 <Link href="/privacy" className={`transition-colors hover:text-[#1b1b1d] ${H}`}>
                   Privacy

@@ -360,18 +360,9 @@ export function OnboardingForm({
         if (nextRel && nextRel.startsWith('/')) {
             router.push(nextRel)
         } else {
-            try {
-                const res = await fetch('/api/onboarding/domain-choice')
-                if (res.ok) {
-                    const data = await res.json()
-                    if (data.show) {
-                        router.push('/d/onboarding')
-                        return
-                    }
-                }
-            } catch (e) {
-                logger.error('Domain-choice check failed', e as Error)
-            }
+            // Domain join / org options are loaded on `/d/onboarding` via `/api/onboarding/domain-options`
+            // (Bearer auth). Do not call a non-existent `/api/onboarding/domain-choice` — that returned HTML
+            // and broke `res.json()` with SyntaxError.
             router.push('/d/onboarding')
         }
     }

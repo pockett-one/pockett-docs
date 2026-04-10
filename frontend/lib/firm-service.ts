@@ -86,6 +86,16 @@ export class FirmService {
 
     const billingAnchorId = data.billingSharesSubscriptionFromFirmId?.trim() || null
     if (billingAnchorId) {
+      const anchorRow = await prisma.firm.findUnique({
+        where: { id: billingAnchorId },
+        select: { anchorFirmId: true },
+      })
+      if (!anchorRow) {
+        throw new Error('Billing anchor firm not found.')
+      }
+      if (anchorRow.anchorFirmId) {
+        throw new Error('Nested anchor hierarchies are not supported.')
+      }
       const allowed = await userHasMembershipUnderAnchor(data.userId, billingAnchorId)
       if (!allowed) {
         throw new Error('You cannot attach this workspace to that billing subscription.')
@@ -104,11 +114,19 @@ export class FirmService {
           firmFolderId: data.firmFolderId,
           connectorId: data.connectorId,
           sandboxOnly: data.sandboxOnly ?? false,
+          anchorFirmId: billingAnchorId,
           billingSharesSubscriptionFromFirmId: billingAnchorId,
           createdBy: data.userId,
           updatedBy: data.userId,
         },
       })
+
+      if (data.connectorId) {
+        await tx.connector.update({
+          where: { id: data.connectorId },
+          data: { firmId: created.id },
+        })
+      }
 
       await tx.firmMember.create({
         data: {

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
     Dialog,
@@ -39,7 +39,40 @@ export function AddProjectModal({ orgSlug, clientSlug, firmSandboxOnly = false, 
     const [rateOrValue, setRateOrValue] = useState('')
     const [tagsInput, setTagsInput] = useState('')
     const [error, setError] = useState<string | null>(null)
+    const [capBlocked, setCapBlocked] = useState(false)
+    const [capMessage, setCapMessage] = useState<string | null>(null)
     const router = useRouter()
+    useEffect(() => {
+        let mounted = true
+        const run = async () => {
+            try {
+                const response = await fetch(`/api/billing/engagement-gate?firmSlug=${encodeURIComponent(orgSlug)}`)
+                if (!response.ok) return
+                const payload = (await response.json()) as { allowed?: boolean; cap?: number | null; count?: number }
+                if (!mounted) return
+                const blocked = payload.allowed === false
+                setCapBlocked(blocked)
+                if (blocked) {
+                    const cap = typeof payload.cap === 'number' ? payload.cap : null
+                    const count = typeof payload.count === 'number' ? payload.count : null
+                    if (cap != null && count != null) {
+                        setCapMessage(`Engagement limit reached (${count}/${cap}) for this firm group. Upgrade to add more.`)
+                    } else {
+                        setCapMessage('Engagement limit reached for this firm group. Upgrade to add more.')
+                    }
+                } else {
+                    setCapMessage(null)
+                }
+            } catch {
+                // best effort: keep form usable if gate lookup fails
+            }
+        }
+        run()
+        return () => {
+            mounted = false
+        }
+    }, [orgSlug])
+
     const orgSandbox = useOrgSandbox()
     const isSandboxFirm = Boolean(firmSandboxOnly || orgSandbox?.sandboxOnly)
 
@@ -64,7 +97,7 @@ export function AddProjectModal({ orgSlug, clientSlug, firmSandboxOnly = false, 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
 
-        if (isSandboxFirm) {
+        if (isSandboxFirm || capBlocked) {
             return
         }
 
@@ -112,6 +145,7 @@ export function AddProjectModal({ orgSlug, clientSlug, firmSandboxOnly = false, 
                         type="button"
                         size="sm"
                         className="gap-2"
+                        disabled={capBlocked}
                     >
                         <SquarePlus className="h-4 w-4" />
                         New Engagement
@@ -133,6 +167,11 @@ export function AddProjectModal({ orgSlug, clientSlug, firmSandboxOnly = false, 
                             {error}
                         </div>
                     )}
+                    {capBlocked && capMessage && (
+                        <div className="bg-amber-50 border border-amber-200 text-amber-800 text-sm px-3 py-2 rounded-md">
+                            {capMessage}
+                        </div>
+                    )}
                     <div className="space-y-2">
                         <Label htmlFor="name" className={isSandboxFirm ? 'text-slate-500' : 'text-slate-900'}>
                             Engagement Name <span className="text-slate-500">*</span>
@@ -143,7 +182,7 @@ export function AddProjectModal({ orgSlug, clientSlug, firmSandboxOnly = false, 
                             onChange={(e) => setName(e.target.value)}
                             placeholder="e.g. Q1 Audit"
                             required={!isSandboxFirm}
-                            disabled={isSandboxFirm || isLoading}
+                            disabled={isSandboxFirm || capBlocked || isLoading}
                             className="border-slate-200 text-slate-900 placeholder:text-slate-400 disabled:cursor-not-allowed disabled:opacity-60"
                         />
                     </div>
@@ -153,7 +192,7 @@ export function AddProjectModal({ orgSlug, clientSlug, firmSandboxOnly = false, 
                             id="eng-status"
                             value={status}
                             onChange={(e) => setStatus(e.target.value as LwCrmEngagementStatus)}
-                            disabled={isSandboxFirm || isLoading}
+                            disabled={isSandboxFirm || capBlocked || isLoading}
                             className="w-full h-10 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
                         >
                             <option value="PLANNED">Planned</option>
@@ -170,7 +209,7 @@ export function AddProjectModal({ orgSlug, clientSlug, firmSandboxOnly = false, 
                                 type="date"
                                 value={startDate}
                                 onChange={(e) => setStartDate(e.target.value)}
-                                disabled={isSandboxFirm || isLoading}
+                                disabled={isSandboxFirm || capBlocked || isLoading}
                                 className="border-slate-200 text-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
                             />
                         </div>
@@ -181,7 +220,7 @@ export function AddProjectModal({ orgSlug, clientSlug, firmSandboxOnly = false, 
                                 type="date"
                                 value={endDate}
                                 onChange={(e) => setEndDate(e.target.value)}
-                                disabled={isSandboxFirm || isLoading}
+                                disabled={isSandboxFirm || capBlocked || isLoading}
                                 className="border-slate-200 text-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
                             />
                         </div>
@@ -196,7 +235,7 @@ export function AddProjectModal({ orgSlug, clientSlug, firmSandboxOnly = false, 
                             onChange={(e) => setDescription(e.target.value)}
                             placeholder="Brief engagement description"
                             rows={2}
-                            disabled={isSandboxFirm || isLoading}
+                            disabled={isSandboxFirm || capBlocked || isLoading}
                             className="flex w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 disabled:cursor-not-allowed disabled:opacity-60"
                         />
                     </div>
@@ -208,7 +247,7 @@ export function AddProjectModal({ orgSlug, clientSlug, firmSandboxOnly = false, 
                                 value={contractType}
                                 onChange={(e) => setContractType(e.target.value)}
                                 placeholder="Optional"
-                                disabled={isSandboxFirm || isLoading}
+                                disabled={isSandboxFirm || capBlocked || isLoading}
                                 className="border-slate-200 text-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
                             />
                         </div>
@@ -219,7 +258,7 @@ export function AddProjectModal({ orgSlug, clientSlug, firmSandboxOnly = false, 
                                 value={rateOrValue}
                                 onChange={(e) => setRateOrValue(e.target.value)}
                                 placeholder="Optional"
-                                disabled={isSandboxFirm || isLoading}
+                                disabled={isSandboxFirm || capBlocked || isLoading}
                                 className="border-slate-200 text-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
                             />
                         </div>
@@ -231,7 +270,7 @@ export function AddProjectModal({ orgSlug, clientSlug, firmSandboxOnly = false, 
                             value={tagsInput}
                             onChange={(e) => setTagsInput(e.target.value)}
                             placeholder="Comma-separated"
-                            disabled={isSandboxFirm || isLoading}
+                            disabled={isSandboxFirm || capBlocked || isLoading}
                             className="border-slate-200 text-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
                         />
                     </div>
@@ -242,7 +281,7 @@ export function AddProjectModal({ orgSlug, clientSlug, firmSandboxOnly = false, 
                         <Button
                             variant="blackCta"
                             type="submit"
-                            disabled={isSandboxFirm || isLoading || !name.trim()}
+                            disabled={isSandboxFirm || capBlocked || isLoading || !name.trim()}
                         >
                             {isLoading && <LoadingSpinner size="sm" />}
                             Create Engagement

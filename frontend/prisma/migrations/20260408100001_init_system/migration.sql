@@ -10,18 +10,16 @@ CREATE TABLE "system"."system_admins" (
     CONSTRAINT "system_admins_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
+-- CreateTable (squashed: was altered by 20260405120000_contact_submissions_simplify_fields)
 CREATE TABLE "system"."contact_submissions" (
     "id" UUID NOT NULL DEFAULT gen_random_uuid(),
     "created_at" TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "ip_address" TEXT,
     "email" TEXT,
-    "plan" TEXT,
     "role" TEXT,
     "team_size" TEXT,
-    "pain_point" TEXT,
-    "feature_request" TEXT,
-    "comments" TEXT,
+    "inquiry_type" TEXT,
+    "message" TEXT,
 
     CONSTRAINT "contact_submissions_pkey" PRIMARY KEY ("id")
 );

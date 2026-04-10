@@ -80,6 +80,23 @@ export async function POST(request: NextRequest) {
             billingSharesSubscriptionFromFirmId: billingAnchorId ?? undefined,
         })
 
+        // Persist onboarding progress on firm.settings (firm-first onboarding source of truth).
+        await prisma.firm.update({
+            where: { id: firm.id },
+            data: {
+                settings: {
+                    ...(firm.settings as Record<string, unknown> ?? {}),
+                    onboarding: {
+                        currentStep: 3,
+                        isComplete: !sandboxOnly,
+                        driveConnected: true,
+                        stage: sandboxOnly ? 'sandbox_created' : 'workspace_created',
+                        lastUpdated: new Date().toISOString(),
+                    },
+                },
+            },
+        })
+
         // 2. Update connector with onboarding progress (fetch once, reuse below for Drive setup)
         let connector: { status: string; settings: unknown } | null = null
         if (connectionId) {

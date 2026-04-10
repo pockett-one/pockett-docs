@@ -155,10 +155,14 @@ model Connector {
   workspaceRootSharedDriveId   String?
   /** Cached shared drive display name for UI. */
   workspaceRootSharedDriveName String?
+  /** Firm owner (new model). Legacy firm.connectorId flow may still be present during migration. */
+  firmId            String?         @db.Uuid
 
-  firms Firm[]
+  firms Firm[] @relation("LegacyFirmConnector")
+  firm  Firm?  @relation("FirmConnectors", fields: [firmId], references: [id], onDelete: SetNull)
 
   @@unique([type, userId])
+  @@index([firmId])
   @@map("connectors")
   @@schema("platform")
 }
@@ -201,16 +205,23 @@ model Firm {
   /** When true, Polar webhooks must not overwrite billing*Cap fields (manual exceptions). */
   billingCapsLocked                   Boolean  @default(false)
 
+  /** Optional umbrella anchor: satellites point to an anchor firm id (one-level hierarchy). */
+  anchorFirmId        String?  @db.Uuid
+
   brandingSubtext    String?
   logoUrl            String?
   themeColorHex      String?
   connectorId        String?  @db.Uuid
   firmFolderId       String?
-  sandboxOnly        Boolean  @default(false)
+  sandboxOnly        Boolean  @default(false) @map("isAnchor")
 
-  connector         Connector?        @relation(fields: [connectorId], references: [id])
+  connector         Connector?        @relation("LegacyFirmConnector", fields: [connectorId], references: [id])
+  connectors        Connector[]       @relation("FirmConnectors")
+  anchorFirm        Firm?             @relation("FirmAnchorHierarchy", fields: [anchorFirmId], references: [id], onDelete: SetNull)
+  anchoredFirms     Firm[]            @relation("FirmAnchorHierarchy")
   billingSubscriptionAnchor Firm?     @relation("FirmBillingShare", fields: [billingSharesSubscriptionFromFirmId], references: [id], onDelete: SetNull)
   satelliteFirms            Firm[]    @relation("FirmBillingShare")
+  subscriptions             Subscription[]
   clients           Client[]
   engagements       Engagement[]
   members           FirmMember[]
@@ -220,7 +231,34 @@ model Firm {
   platformAuditEvents PlatformAuditEvent[]
 
   @@index([billingSharesSubscriptionFromFirmId])
+  @@index([anchorFirmId])
   @@map("firms")
+  @@schema("platform")
+}
+
+model Subscription {
+  id                 String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  createdBy          String?   @db.Uuid
+  updatedBy          String?   @db.Uuid
+  deletedAt          DateTime? @db.Timestamptz(6)
+  deactivatedAt      DateTime? @db.Timestamptz(6)
+  firmId             String    @db.Uuid
+  provider           String?   @default("polar")
+  status             String    @default("active")
+  plan               String?
+  polarCustomerId    String?
+  polarSubscriptionId String?
+  polarOrderId       String?
+  active             Boolean   @default(true)
+  settings           Json      @default("{}")
+
+  firm               Firm      @relation(fields: [firmId], references: [id], onDelete: Cascade)
+
+  @@index([firmId, active])
+  @@index([polarSubscriptionId])
+  @@map("subscriptions")
   @@schema("platform")
 }
 

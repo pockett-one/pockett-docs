@@ -86,7 +86,6 @@ function AppLayoutContent({
                     {/* Middle pane - main content (white card) */}
                     <main className="flex-1 min-w-0 rounded-xl border border-slate-200/80 bg-white shadow-sm overflow-auto z-0">
                         <div className="h-full w-full px-7 pt-3 pb-4 sm:px-10 md:px-12">
-                            <StandardCheckoutIntentBanner />
                             {children}
                         </div>
                     </main>
@@ -106,6 +105,7 @@ function AppLayoutContent({
                         {rightPaneContent}
                     </LayoutRightPanel>
                 ) : null}
+                <StandardCheckoutIntentBanner />
                 <DebugFloatingTrigger />
             </div>
         </AuthGuard>

@@ -1,14 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { logger } from '@/lib/logger'
-import { runSandboxOnboarding } from '@/lib/onboarding/onboarding-helper'
 import { buildDefaultSandboxFirmName } from '@/lib/onboarding/sandbox-firm-name'
 import { SANDBOX_FIRM_NAME_FALLBACK } from '@/lib/services/sample-file-service'
+import { FirmService } from '@/lib/firm-service'
+import { prisma } from '@/lib/prisma'
+import { createAdminClient } from '@/utils/supabase/admin'
+import { invalidateUserSettingsPlus } from '@/lib/actions/user-settings'
+import { safeInngestSend } from '@/lib/inngest/client'
 
 /**
  * POST /api/onboarding/create-sandbox
  * Auth: Bearer token (Supabase). Body: { connectionId, sandboxFirmName? } (legacy: sandboxOrgName).
- * Delegates to OnboardingHelper for firm + hierarchy + Drive + Inngest.
+ * Fast path: create/reuse anchor sandbox firm, enqueue background provisioning in Inngest.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -48,29 +52,88 @@ export async function POST(request: NextRequest) {
       sandboxFirmName: resolvedForLog,
     })
 
-    const result = await runSandboxOnboarding({
+    let firm = await prisma.firm.findFirst({
+      where: {
+        connectorId: connectionId,
+        sandboxOnly: true,
+        deletedAt: null,
+        members: { some: { userId: user.id } },
+      },
+      select: { id: true, slug: true, name: true, settings: true },
+    })
+
+    if (!firm) {
+      const created = await FirmService.createFirmWithMember({
+        userId: user.id,
+        email: user.email || '',
+        firstName: (user.user_metadata?.first_name as string) || '',
+        lastName: (user.user_metadata?.last_name as string) || '',
+        firmName: resolvedForLog,
+        connectorId: connectionId,
+        allowDomainAccess: false,
+        sandboxOnly: true,
+      })
+      firm = { id: created.id, slug: created.slug, name: created.name, settings: created.settings }
+    }
+
+    await prisma.firm.update({
+      where: { id: firm.id },
+      data: {
+        settings: {
+          ...((firm.settings as Record<string, unknown>) || {}),
+          onboarding: {
+            currentStep: 2,
+            stage: 'provisioning',
+            isComplete: false,
+            driveConnected: true,
+            lastUpdated: new Date().toISOString(),
+          },
+        },
+      },
+    })
+
+    await Promise.all([
+      FirmService.setDefaultFirm(user.id, firm.id),
+      createAdminClient().auth.admin.updateUserById(user.id, {
+        user_metadata: {
+          ...user.user_metadata,
+          active_firm_id: firm.id,
+          active_firm_slug: firm.slug,
+          active_persona: 'firm_admin',
+        },
+        app_metadata: {
+          ...(user.app_metadata ?? {}),
+          active_firm_id: firm.id,
+          active_persona: 'firm_admin',
+        },
+      }),
+      invalidateUserSettingsPlus(user.id),
+    ])
+
+    await safeInngestSend('sandbox.provision.requested', {
+      firmId: firm.id,
       userId: user.id,
       userEmail: user.email || '',
       firstName: user.user_metadata?.first_name,
       lastName: user.user_metadata?.last_name,
       connectionId,
-      sandboxFirmName: sandboxFirmNameRaw,
     })
 
-    logger.info('Sandbox onboarding batch complete (includes Polar free plan when configured)', {
+    logger.info('Sandbox onboarding queued in background', {
       userId: user.id,
-      firmId: result.firm.id,
-      firmSlug: result.firm.slug,
+      firmId: firm.id,
+      firmSlug: firm.slug,
     })
 
     return NextResponse.json({
       success: true,
-      organizationId: result.firm.id,
-      organizationSlug: result.firm.slug,
-      organizationName: result.firm.name,
-      firmId: result.firm.id,
-      firmSlug: result.firm.slug,
-      firmName: result.firm.name,
+      organizationId: firm.id,
+      organizationSlug: firm.slug,
+      organizationName: firm.name,
+      firmId: firm.id,
+      firmSlug: firm.slug,
+      firmName: firm.name,
+      provisioning: true,
     })
   } catch (error) {
     logger.error('Error creating sandbox (batched)', error as Error)

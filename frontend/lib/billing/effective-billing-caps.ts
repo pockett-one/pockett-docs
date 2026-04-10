@@ -1,10 +1,16 @@
 import { prisma } from '@/lib/prisma'
-import { resolveBillingAnchorFirmId, countFirmsInBillingGroup, type BillingAnchorRow } from '@/lib/billing/billing-group'
+import {
+    resolveBillingAnchorFirmId,
+    countFirmsInBillingGroup,
+    listFirmIdsInBillingGroup,
+    type BillingAnchorRow,
+} from '@/lib/billing/billing-group'
 import {
     getDefaultCapsForPlanColumn,
     resolvePlanColumnFromSubscription,
 } from '@/lib/billing/plan-default-caps'
 import { pricingModelFromRecurringFlag } from '@/lib/billing/pricing-model'
+import { getEntitledEngagementsCapForFirm } from '@/lib/billing/subscription-metadata'
 
 type PolarSubscriptionStatusForCaps = 'active' | 'trialing' | 'past_due' | 'canceled' | 'unpaid' | 'none'
 
@@ -124,13 +130,14 @@ export async function assertWithinActiveEngagementCap(workspaceFirmId: string): 
     if (!anchor) throw new Error('Firm not found')
     if (anchorUsesSandboxCapDefaults(anchor)) return
 
-    const cap = effectiveActiveEngagementCap(anchor)
+    const metadataCap = await getEntitledEngagementsCapForFirm(workspaceFirmId)
+    const cap = metadataCap ?? effectiveActiveEngagementCap(anchor)
+    const groupFirmIds = await listFirmIdsInBillingGroup(anchor.id)
     const count = await prisma.engagement.count({
         where: {
-            firmId: workspaceFirmId,
+            firmId: { in: groupFirmIds },
             deletedAt: null,
             isDeleted: false,
-            status: 'ACTIVE',
         },
     })
     if (count >= cap) {

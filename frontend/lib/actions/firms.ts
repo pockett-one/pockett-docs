@@ -12,6 +12,7 @@ import {
     resolveBillingAnchorForNewSatelliteFirm,
 } from '@/lib/billing/firm-creation-gate'
 import { buildDefaultSandboxFirmName } from '@/lib/onboarding/sandbox-firm-name'
+import { isWorkspaceOnboardingComplete } from '@/lib/onboarding/workspace-onboarding-complete'
 import { SANDBOX_FIRM_NAME_FALLBACK } from '@/lib/services/sample-file-service'
 import { googleDriveConnector } from '@/lib/google-drive-connector'
 
@@ -137,16 +138,22 @@ export async function getDefaultFirmWithOnboardingStatus(): Promise<{
     const defaultFirm = await FirmService.getDefaultFirm(user.id)
     const slug = defaultFirm?.slug ?? null
 
-    const settings = defaultFirm?.settings as any
-    const onboardingComplete = settings?.onboarding?.isComplete === true
+    const onboardingComplete = defaultFirm
+        ? await isWorkspaceOnboardingComplete({
+              id: defaultFirm.id,
+              settings: defaultFirm.settings,
+              connectorId: defaultFirm.connectorId ?? null,
+          })
+        : false
 
     return { slug, onboardingComplete }
 }
 
 /**
  * Where to send the user when entering the app at `/d` (and when auth callback has no explicit `next`).
- * Invited non-admins go straight to `/d/f/{slug}`; firm admins must finish onboarding
- * (`settings.onboarding.isComplete`) before landing in the default workspace — same rules as `auth/callback`.
+ * Invited non-admins go straight to `/d/f/{slug}`; firm admins must finish workspace onboarding
+ * (connector `settings.onboarding` + org folder map; legacy `firm.settings.onboarding`) before landing
+ * in the default workspace — same rules as `auth/callback`.
  * Returns `null` only if the resolved firm has no slug (malformed data); caller may show a firm picker.
  */
 export async function resolveDefaultFirmLandingPath(userId: string): Promise<string | null> {
@@ -166,9 +173,11 @@ export async function resolveDefaultFirmLandingPath(userId: string): Promise<str
         return `/d/f/${targetFirm.slug}`
     }
 
-    const onboardingComplete =
-        targetFirm.settings != null &&
-        (targetFirm.settings as any)?.onboarding?.isComplete === true
+    const onboardingComplete = await isWorkspaceOnboardingComplete({
+        id: targetFirm.id,
+        settings: targetFirm.settings,
+        connectorId: targetFirm.connectorId ?? null,
+    })
 
     if (!onboardingComplete) {
         return '/d/onboarding'

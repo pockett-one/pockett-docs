@@ -29,21 +29,47 @@ export function billingEmailForFirm(userEmail: string, firmId: string): string {
 async function persistFirmWithLifetimeFreePlan(firmId: string, customerId: string) {
     const displayName = process.env.POLAR_FREE_PLAN_DISPLAY_NAME?.trim() || 'Free plan'
     const sandboxCaps = getDefaultCapsForPlanColumn('sandbox')
-    await prisma.firm.update({
-        where: { id: firmId },
-        data: {
-            polarCustomerId: customerId,
-            polarSubscriptionId: null,
-            polarOrderId: null,
-            subscriptionStatus: 'active',
-            subscriptionProvider: 'polar',
-            subscriptionPlan: displayName,
-            pricingModel: pricingModelFromRecurringFlag(false),
-            subscriptionCurrentPeriodEnd: null,
-            billingActiveEngagementCap: sandboxCaps.activeEngagementCap,
-            billingGroupFirmCap: sandboxCaps.firmGroupCap,
-            billingCapsLocked: false,
-        },
+    await prisma.$transaction(async (tx) => {
+        await tx.firm.update({
+            where: { id: firmId },
+            data: {
+                polarCustomerId: customerId,
+                polarSubscriptionId: null,
+                polarOrderId: null,
+                subscriptionStatus: 'active',
+                subscriptionProvider: 'polar',
+                subscriptionPlan: displayName,
+                pricingModel: pricingModelFromRecurringFlag(false),
+                subscriptionCurrentPeriodEnd: null,
+                billingActiveEngagementCap: sandboxCaps.activeEngagementCap,
+                billingGroupFirmCap: sandboxCaps.firmGroupCap,
+                billingCapsLocked: false,
+            },
+        })
+
+        await tx.subscription.updateMany({
+            where: { firmId, active: true, deletedAt: null },
+            data: { active: false, deactivatedAt: new Date() },
+        })
+
+        await tx.subscription.create({
+            data: {
+                firmId,
+                provider: 'polar',
+                status: 'active',
+                plan: displayName,
+                polarCustomerId: customerId,
+                polarSubscriptionId: null,
+                polarOrderId: null,
+                active: true,
+                settings: {
+                    metadata: {
+                        entitledEngagements: sandboxCaps.activeEngagementCap,
+                        source: 'free_sandbox_defaults',
+                    },
+                },
+            },
+        })
     })
 }
 

@@ -348,7 +348,7 @@ export default function PricingPage() {
                                         <Link
                                             href={
                                                 plan.id === "Standard"
-                                                    ? `/signup?intent=standard&interval=${billingPeriod}`
+                                                    ? `/signup?intent=standard&interval=${billingPeriod}&paid_plan=true`
                                                     : (plan.href ?? "/contact") === "/contact"
                                                       ? CONTACT_HREF_SALES_INQUIRY
                                                       : (plan.href ?? "/contact")

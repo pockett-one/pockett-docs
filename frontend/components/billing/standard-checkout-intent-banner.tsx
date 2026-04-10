@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { X } from 'lucide-react'
@@ -20,11 +21,20 @@ import { buttonVariants } from '@/components/ui/button'
 
 const HIDE_ONBOARDING_PATHS = ['/d/onboarding']
 
+/** Above app chrome (topbar z-50, sidebar z-40) so overlay blocks interaction. */
+const OVERLAY_Z = 100
+
 export function StandardCheckoutIntentBanner() {
     const pathname = usePathname() ?? ''
     const firms = useSidebarFirms()
     const [gate, setGate] = useState<'unknown' | 'show' | 'hide'>('unknown')
     const [intent, setIntent] = useState<StandardCheckoutIntent | null>(null)
+    const [upgradeNudge, setUpgradeNudge] = useState(false)
+    const [mounted, setMounted] = useState(false)
+
+    useEffect(() => {
+        setMounted(true)
+    }, [])
 
     useEffect(() => {
         let cancelled = false
@@ -44,6 +54,23 @@ export function StandardCheckoutIntentBanner() {
 
     useEffect(() => {
         setIntent(readCheckoutIntent())
+    }, [pathname])
+
+    useEffect(() => {
+        let cancelled = false
+        fetch('/api/billing/upgrade-nudge-status')
+            .then((res) => (res.ok ? res.json() : { shouldShow: false }))
+            .then((payload: { shouldShow?: boolean }) => {
+                if (cancelled) return
+                setUpgradeNudge(payload.shouldShow === true)
+            })
+            .catch(() => {
+                if (cancelled) return
+                setUpgradeNudge(false)
+            })
+        return () => {
+            cancelled = true
+        }
     }, [pathname])
 
     const defaultFirm = useMemo(() => {
@@ -74,44 +101,88 @@ export function StandardCheckoutIntentBanner() {
 
     const showBanner =
         gate === 'show' &&
-        intent?.intent === 'standard' &&
+        (intent?.intent === 'standard' || upgradeNudge) &&
         !HIDE_ONBOARDING_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`))
 
-    if (!showBanner || !checkoutHref || !defaultFirm || !intent) return null
+    const visible = Boolean(showBanner && checkoutHref && defaultFirm && intent)
 
-    const intervalLabel = intent.interval === 'monthly' ? 'Monthly' : 'Annual'
+    useEffect(() => {
+        if (!visible) return
+        const prev = document.body.style.overflow
+        document.body.style.overflow = 'hidden'
+        return () => {
+            document.body.style.overflow = prev
+        }
+    }, [visible])
 
-    return (
-        <div
-            className={cn(
-                'mb-4 flex flex-col gap-3 rounded-lg border border-slate-200/90 bg-slate-50/90 px-4 py-3 sm:flex-row sm:items-center sm:justify-between'
-            )}
-            role="region"
-            aria-label="Continue checkout"
-        >
-            <p className="text-sm text-slate-700">
-                <span className="font-medium text-slate-900">Continue to Standard checkout</span>
-                <span className="text-slate-600"> — {intervalLabel} billing</span>
-            </p>
-            <div className="flex shrink-0 items-center gap-2">
-                <Link
-                    href={checkoutHref}
-                    className={cn(
-                        buttonVariants({ variant: 'blackCta', size: 'sm' }),
-                        'h-9 px-4 text-xs font-semibold'
-                    )}
-                >
-                    Continue
-                </Link>
-                <button
-                    type="button"
-                    onClick={dismiss}
-                    className="inline-flex h-9 w-9 items-center justify-center rounded-md text-slate-500 transition-colors hover:bg-slate-200/80 hover:text-slate-800"
-                    aria-label="Dismiss"
-                >
-                    <X className="h-4 w-4" strokeWidth={2.25} />
-                </button>
+    if (!mounted || !visible || !checkoutHref || !defaultFirm) return null
+
+    const intervalLabel = intent?.interval === 'monthly' ? 'Monthly' : 'Annual'
+
+    return createPortal(
+        <>
+            {/* Blocking backdrop — does not dismiss on click; use X or Continue. */}
+            <div
+                className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm"
+                style={{ zIndex: OVERLAY_Z }}
+                aria-hidden
+            />
+            <div
+                className={cn(
+                    'fixed left-0 right-0 border-t-2 border-[#006e16] bg-white shadow-[0_-12px_40px_-8px_rgba(15,23,42,0.25)]',
+                    'pb-[max(1rem,env(safe-area-inset-bottom))] pt-4'
+                )}
+                style={{ zIndex: OVERLAY_Z + 1, bottom: 0 }}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="standard-checkout-banner-title"
+            >
+                <div className="mx-auto flex max-w-5xl flex-col gap-4 px-4 sm:flex-row sm:items-center sm:justify-between sm:px-8">
+                    <div className="min-w-0 pr-10 sm:pr-4">
+                        <p
+                            id="standard-checkout-banner-title"
+                            className="text-lg font-semibold tracking-tight text-slate-900 sm:text-xl"
+                        >
+                            Finish Standard checkout
+                        </p>
+                        <p className="mt-1 text-sm leading-relaxed text-slate-600 sm:text-base">
+                            {intent?.intent === 'standard'
+                                ? (
+                                    <>
+                                        You chose <span className="font-medium text-slate-800">Standard</span> with{' '}
+                                        <span className="font-medium text-[#006e16]">{intervalLabel}</span> billing.
+                                        Continue to secure checkout or open billing to pick a plan.
+                                    </>
+                                )
+                                : (
+                                    <>
+                                        Your firm is still on the Free plan. Upgrade now to unlock more capacity and features.
+                                    </>
+                                )}
+                        </p>
+                    </div>
+                    <div className="flex shrink-0 flex-row items-center gap-3 sm:flex-col sm:items-stretch md:flex-row md:items-center">
+                        <Link
+                            href={checkoutHref}
+                            className={cn(
+                                buttonVariants({ variant: 'blackCta', size: 'default' }),
+                                'h-11 min-w-[10rem] justify-center px-6 text-sm font-semibold shadow-md'
+                            )}
+                        >
+                            Continue to checkout
+                        </Link>
+                        <button
+                            type="button"
+                            onClick={dismiss}
+                            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 shadow-sm transition-colors hover:bg-slate-50 hover:text-slate-900"
+                            aria-label="Dismiss"
+                        >
+                            <X className="h-5 w-5" strokeWidth={2.25} />
+                        </button>
+                    </div>
+                </div>
             </div>
-        </div>
+        </>,
+        document.body
     )
 }

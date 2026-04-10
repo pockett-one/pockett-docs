@@ -60,12 +60,15 @@ export function BillingPageClient() {
     const searchParams = useSearchParams()
     const firmSlugParam = searchParams.get('firmSlug')?.trim() || ''
     const returnToParam = searchParams.get('returnTo')
+    const paidPlanIntent = searchParams.get('paid_plan') === 'true'
 
     const [firms, setFirms] = useState<Awaited<ReturnType<typeof getUserFirms>>>([])
     const [loadError, setLoadError] = useState<string | null>(null)
     const [currentPlanState, setCurrentPlanState] = useState<BillingCurrentPlanState | null>(null)
     const [firmManageOk, setFirmManageOk] = useState(false)
     const [firmManageChecked, setFirmManageChecked] = useState(false)
+    const [skipSubmitting, setSkipSubmitting] = useState(false)
+    const [skipMessage, setSkipMessage] = useState<string | null>(null)
 
     const portalReturnPath = useMemo(() => {
         const q = searchParams.toString()
@@ -181,6 +184,23 @@ export function BillingPageClient() {
         return null
     }
 
+    const handleSkipUpgrade = async () => {
+        setSkipMessage(null)
+        setSkipSubmitting(true)
+        try {
+            const response = await fetch('/api/billing/skip-upgrade', { method: 'POST' })
+            if (!response.ok) {
+                throw new Error('Failed to skip for now')
+            }
+            setSkipMessage('Saved. We will remind you to upgrade on future sign-ins.')
+            router.replace(returnPath)
+        } catch (error) {
+            setSkipMessage(error instanceof Error ? error.message : 'Could not save skip preference')
+        } finally {
+            setSkipSubmitting(false)
+        }
+    }
+
     return (
         <div className="relative mx-auto max-w-5xl space-y-10 pb-10 px-4 sm:px-5 md:px-6">
             <div
@@ -208,6 +228,16 @@ export function BillingPageClient() {
                 </h1>
                 <p className="text-sm font-medium text-[#7a5343]">{upgradeCopy.billingTitle}</p>
                 <p className="max-w-2xl text-sm leading-relaxed text-slate-600">{upgradeCopy.billingBody}</p>
+                {paidPlanIntent && (
+                    <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
+                        You currently have an active Free plan. You can upgrade now, or skip and continue.
+                    </div>
+                )}
+                {skipMessage && (
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+                        {skipMessage}
+                    </div>
+                )}
             </header>
 
             <ul className="grid gap-4 sm:grid-cols-3">
@@ -289,6 +319,18 @@ export function BillingPageClient() {
                     ) : null}
                 </div>
             </section>
+            {paidPlanIntent && (
+                <div className="flex justify-end">
+                    <button
+                        type="button"
+                        onClick={handleSkipUpgrade}
+                        disabled={skipSubmitting}
+                        className="inline-flex h-10 items-center rounded-md border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
+                    >
+                        {skipSubmitting ? 'Saving…' : 'Skip for now'}
+                    </button>
+                </div>
+            )}
         </div>
     )
 }

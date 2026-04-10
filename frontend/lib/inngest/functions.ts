@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { googleDriveConnector } from "@/lib/google-drive-connector";
 import { logger } from "@/lib/logger";
 import { safeInngestSend } from "./client";
+import { provisionSandboxHierarchyForFirm } from '@/lib/onboarding/onboarding-helper'
 
 // ---------------------------------------------------------------------------
 // Search Indexing Functions
@@ -196,6 +197,34 @@ export const populateSandboxSampleFiles = inngest.createFunction(
         }
 
         return { populated: projects.length, organizationId }
+    }
+)
+
+export const provisionSandboxHierarchy = inngest.createFunction(
+    { id: 'provision-sandbox-hierarchy' },
+    { event: 'sandbox.provision.requested' },
+    async ({ event, step }) => {
+        const payload = event.data as {
+            firmId: string
+            userId: string
+            userEmail: string
+            firstName?: string
+            lastName?: string
+            connectionId: string
+        }
+
+        await step.run('provision-hierarchy-and-drive', async () => {
+            await provisionSandboxHierarchyForFirm({
+                firmId: payload.firmId,
+                userId: payload.userId,
+                userEmail: payload.userEmail,
+                firstName: payload.firstName,
+                lastName: payload.lastName,
+                connectionId: payload.connectionId,
+            })
+        })
+
+        return { ok: true, firmId: payload.firmId }
     }
 )
 

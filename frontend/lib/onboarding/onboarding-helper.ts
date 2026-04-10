@@ -128,6 +128,28 @@ async function patchConnectorSandboxOnboardingProgress(connectionId: string, use
   })
 }
 
+async function patchFirmSandboxOnboardingProgress(firmId: string, userId: string): Promise<void> {
+  const firm = await prisma.firm.findUnique({ where: { id: firmId }, select: { settings: true } })
+  if (!firm) return
+  const currentSettings = (firm.settings as Record<string, unknown>) || {}
+  await prisma.firm.update({
+    where: { id: firmId },
+    data: {
+      settings: {
+        ...currentSettings,
+        onboarding: {
+          currentStep: 3,
+          isComplete: false,
+          stage: 'sandbox_created',
+          driveConnected: true,
+          lastUpdated: new Date().toISOString(),
+        },
+      },
+      updatedBy: userId,
+    },
+  })
+}
+
 async function setDefaultFirmAndJwt(userId: string, firm: { id: string; slug: string }): Promise<void> {
   await Promise.all([
     FirmService.setDefaultFirm(userId, firm.id),
@@ -330,6 +352,7 @@ export async function runSandboxOnboarding(
         sandboxOnly: Boolean(firmRow.sandboxOnly),
       })
       await patchConnectorSandboxOnboardingProgress(connectionId, userId)
+      await patchFirmSandboxOnboardingProgress(firmRow.id, userId)
       const firm = await FirmService.getFirmById(firmRow.id, userId)
       if (!firm) {
         throw new Error('Could not load firm after sandbox reuse')
@@ -374,6 +397,7 @@ export async function runSandboxOnboarding(
       if (!firm) {
         throw new Error('Import did not produce an accessible firm')
       }
+      await patchFirmSandboxOnboardingProgress(firm.id, userId)
       const normalizedName = await normalizeSandboxFirmNameForAdmin(input, {
         id: firm.id,
         name: firm.name,
@@ -418,6 +442,7 @@ export async function runSandboxOnboarding(
   })
 
   await patchConnectorSandboxOnboardingProgress(connectionId, userId)
+  await patchFirmSandboxOnboardingProgress(firm.id, userId)
 
   const setupResult = await googleDriveConnector.setupOrgFolder(
     connectionId,
@@ -505,4 +530,148 @@ export async function runSandboxOnboarding(
     firm: { id: firm.id, slug: firm.slug, name: firm.name },
     orgFolderId: setupResult.orgId,
   }
+}
+
+export async function provisionSandboxHierarchyForFirm(input: {
+  firmId: string
+  userId: string
+  userEmail: string
+  firstName?: string
+  lastName?: string
+  connectionId: string
+}): Promise<void> {
+  const { firmId, userId, connectionId } = input
+  const firm = await prisma.firm.findUnique({
+    where: { id: firmId },
+    select: { id: true, slug: true, name: true, connectorId: true, settings: true },
+  })
+  if (!firm) {
+    throw new Error('Firm not found for sandbox provisioning')
+  }
+
+  const connector = await (prisma as any).connector.findUnique({ where: { id: connectionId } })
+  if (!connector || connector.status !== 'ACTIVE') {
+    throw new Error('Connector not active')
+  }
+
+  const driveSettings = (connector.settings as any) || {}
+  const driveRootFolderId = driveSettings.parentFolderId || driveSettings.rootFolderId || 'root'
+
+  const setupResult = await googleDriveConnector.setupOrgFolder(
+    connectionId,
+    driveRootFolderId,
+    firm.id,
+    userId
+  )
+  const orgFolderId = setupResult.orgId
+  if (!orgFolderId) {
+    throw new Error('Failed to setup sandbox firm folder')
+  }
+
+  await patchConnectorSandboxOnboardingProgress(connectionId, userId)
+  await patchFirmSandboxOnboardingProgress(firm.id, userId)
+
+  for (const clientEntry of SANDBOX_HIERARCHY) {
+    const existingClient = await prisma.client.findFirst({
+      where: {
+        firmId: firm.id,
+        deletedAt: null,
+        name: { equals: clientEntry.clientName, mode: 'insensitive' },
+      },
+    })
+    const client = existingClient ?? await ClientService.createClient({
+        firmId: firm.id,
+        name: clientEntry.clientName,
+        creatorUserId: userId,
+        sandboxOnly: true,
+      })
+
+    const contactCount = await prisma.clientContact.count({
+      where: { firmId: firm.id, clientId: client.id },
+    })
+    if (contactCount === 0) {
+      const preset =
+        SANDBOX_CLIENT_PRIMARY_CONTACTS[clientEntry.clientName] ?? {
+          name: 'Alex Kim',
+          title: 'Primary contact',
+          phone: '+1 (555) 100-0000',
+          notes: 'Sample sandbox contact for demos.',
+        }
+      await prisma.clientContact.create({
+        data: {
+          firmId: firm.id,
+          clientId: client.id,
+          name: preset.name,
+          email: `primary.${client.slug}@sandbox.firmaone.com`,
+          phone: preset.phone ?? null,
+          title: preset.title,
+          notes: preset.notes ?? null,
+          tags: [],
+          engagementId: null,
+          createdBy: userId,
+          updatedBy: userId,
+        },
+      })
+    }
+
+    for (const engagementEntry of clientEntry.engagements) {
+      const existing = await prisma.engagement.findFirst({
+        where: {
+          firmId: firm.id,
+          clientId: client.id,
+          deletedAt: null,
+          isDeleted: false,
+          name: { equals: engagementEntry.name, mode: 'insensitive' },
+        },
+        select: { id: true },
+      })
+      if (!existing) {
+        await projectService.createProject(
+          firm.id,
+          client.id,
+          engagementEntry.name,
+          userId,
+          '',
+          true,
+          true
+        )
+      }
+    }
+  }
+
+  await finalizeSandboxDriveConnectorAndIndexing(
+    { id: firm.id, slug: firm.slug, name: firm.name },
+    orgFolderId,
+    connectionId,
+    userId
+  )
+
+  await provisionPolarFreePlanForOnboardingFirm(
+    {
+      userId,
+      userEmail: input.userEmail,
+      firstName: input.firstName,
+      lastName: input.lastName,
+      connectionId,
+    },
+    { id: firm.id }
+  )
+
+  const currentSettings = (firm.settings as Record<string, unknown>) || {}
+  await prisma.firm.update({
+    where: { id: firm.id },
+    data: {
+      settings: {
+        ...currentSettings,
+        onboarding: {
+          currentStep: 3,
+          isComplete: true,
+          stage: 'completed',
+          driveConnected: true,
+          lastUpdated: new Date().toISOString(),
+        },
+      },
+      updatedBy: userId,
+    },
+  })
 }

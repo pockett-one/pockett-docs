@@ -1,9 +1,12 @@
-import * as React from "react"
 import {
   BRAND_WORDMARK_GRADIENT_HOVER_STOPS,
   BRAND_WORDMARK_GRADIENT_STOPS,
 } from "@/config/brand"
 import { cn } from "@/lib/utils"
+
+/** Stable — not `useId()`: SSR vs client can diverge hook order and break hydration on gradient `id`. */
+const GRADIENT_DEF_ID = "firma-brand-mark-def"
+const GRADIENT_HI_ID = "firma-brand-mark-hi"
 
 const markPaths = (
   <>
@@ -28,9 +31,6 @@ export function BrandMarkIcon({
   /** Solid lime stroke on dark backgrounds (no gradient / hover swap). */
   variant?: "default" | "onDark"
 }) {
-  const uid = React.useId().replace(/:/g, "")
-  const defId = `${uid}-def`
-  const hiId = `${uid}-hi`
   const [d0, d1, d2] = BRAND_WORDMARK_GRADIENT_STOPS
   const [h0, h1, h2] = BRAND_WORDMARK_GRADIENT_HOVER_STOPS
 
@@ -68,19 +68,19 @@ export function BrandMarkIcon({
     >
       {title ? <title>{title}</title> : null}
       <defs>
-        <linearGradient id={defId} x1="0%" y1="50%" x2="100%" y2="50%">
+        <linearGradient id={GRADIENT_DEF_ID} x1="0%" y1="50%" x2="100%" y2="50%">
           <stop offset="0%" stopColor={d0} />
           <stop offset="50%" stopColor={d1} />
           <stop offset="100%" stopColor={d2} />
         </linearGradient>
-        <linearGradient id={hiId} x1="0%" y1="50%" x2="100%" y2="50%">
+        <linearGradient id={GRADIENT_HI_ID} x1="0%" y1="50%" x2="100%" y2="50%">
           <stop offset="0%" stopColor={h0} />
           <stop offset="50%" stopColor={h1} />
           <stop offset="100%" stopColor={h2} />
         </linearGradient>
       </defs>
       <g
-        stroke={`url(#${defId})`}
+        stroke={`url(#${GRADIENT_DEF_ID})`}
         strokeWidth={2}
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -89,7 +89,7 @@ export function BrandMarkIcon({
         {markPaths}
       </g>
       <g
-        stroke={`url(#${hiId})`}
+        stroke={`url(#${GRADIENT_HI_ID})`}
         strokeWidth={2}
         strokeLinecap="round"
         strokeLinejoin="round"

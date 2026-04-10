@@ -656,3 +656,86 @@ DROP POLICY IF EXISTS "engagement_canvases_isolation" ON "platform"."engagement_
 CREATE POLICY "engagement_canvases_isolation" ON "platform"."engagement_canvases" FOR ALL USING (
   "firmId" = ANY(platform.get_current_user_firm_ids()) AND platform.is_user_project_member("engagementId")
 );
+
+-- ----------------------------------------------------------------------
+-- Squashed additions (2026-04-09): firm umbrella, connector ownership, subscriptions
+-- ----------------------------------------------------------------------
+
+ALTER TABLE "platform"."connectors"
+  ADD COLUMN IF NOT EXISTS "firmId" UUID;
+
+ALTER TABLE "platform"."firms"
+  ADD COLUMN IF NOT EXISTS "anchorFirmId" UUID;
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'platform' AND table_name = 'firms' AND column_name = 'sandboxOnly'
+  ) AND NOT EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'platform' AND table_name = 'firms' AND column_name = 'isAnchor'
+  ) THEN
+    ALTER TABLE "platform"."firms" RENAME COLUMN "sandboxOnly" TO "isAnchor";
+  END IF;
+END $$;
+
+ALTER TABLE "platform"."firms"
+  ADD CONSTRAINT "firms_anchorFirmId_fkey"
+  FOREIGN KEY ("anchorFirmId") REFERENCES "platform"."firms"("id")
+  ON DELETE SET NULL ON UPDATE CASCADE;
+
+ALTER TABLE "platform"."connectors"
+  ADD CONSTRAINT "connectors_firmId_fkey"
+  FOREIGN KEY ("firmId") REFERENCES "platform"."firms"("id")
+  ON DELETE SET NULL ON UPDATE CASCADE;
+
+UPDATE "platform"."connectors" c
+SET "firmId" = f."id"
+FROM "platform"."firms" f
+WHERE f."connectorId" = c."id"
+  AND c."firmId" IS NULL;
+
+CREATE INDEX IF NOT EXISTS "firms_anchorFirmId_idx" ON "platform"."firms"("anchorFirmId");
+CREATE INDEX IF NOT EXISTS "connectors_firmId_idx" ON "platform"."connectors"("firmId");
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'firms_no_self_anchor_check'
+  ) THEN
+    ALTER TABLE "platform"."firms"
+      ADD CONSTRAINT "firms_no_self_anchor_check"
+      CHECK ("anchorFirmId" IS NULL OR "anchorFirmId" <> "id");
+  END IF;
+END $$;
+
+CREATE TABLE IF NOT EXISTS "platform"."subscriptions" (
+  "id" UUID NOT NULL DEFAULT gen_random_uuid(),
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updatedAt" TIMESTAMP(3) NOT NULL,
+  "createdBy" UUID,
+  "updatedBy" UUID,
+  "deletedAt" TIMESTAMPTZ(6),
+  "deactivatedAt" TIMESTAMPTZ(6),
+  "firmId" UUID NOT NULL,
+  "provider" TEXT DEFAULT 'polar',
+  "status" TEXT NOT NULL DEFAULT 'active',
+  "plan" TEXT,
+  "polarCustomerId" TEXT,
+  "polarSubscriptionId" TEXT,
+  "polarOrderId" TEXT,
+  "active" BOOLEAN NOT NULL DEFAULT true,
+  "settings" JSONB NOT NULL DEFAULT '{}'::jsonb,
+  CONSTRAINT "subscriptions_pkey" PRIMARY KEY ("id"),
+  CONSTRAINT "subscriptions_firmId_fkey" FOREIGN KEY ("firmId") REFERENCES "platform"."firms"("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS "subscriptions_firmId_active_idx" ON "platform"."subscriptions"("firmId", "active");
+CREATE INDEX IF NOT EXISTS "subscriptions_polarSubscriptionId_idx" ON "platform"."subscriptions"("polarSubscriptionId");
+
+CREATE UNIQUE INDEX IF NOT EXISTS "subscriptions_one_active_per_firm"
+  ON "platform"."subscriptions"("firmId")
+  WHERE "active" = true AND "deletedAt" IS NULL;
