@@ -1,3 +1,4 @@
+import { EngagementRole, DocumentSharingPermissionStatus } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { googleDriveConnector } from '@/lib/google-drive-connector'
 import { logger } from '@/lib/logger'
@@ -7,31 +8,32 @@ import { logger } from '@/lib/logger'
  */
 export async function syncDocumentSharingUsers(projectDocumentId: string) {
   try {
-    const doc = await (prisma as any).projectDocument.findUnique({
+    const doc = await prisma.engagementDocument.findUnique({
       where: { id: projectDocumentId },
       include: {
         sharingUsers: true,
-        project: true,
       },
     })
 
     if (!doc) return
 
     const isExternalCollaboratorEnabled = (doc.settings as any)?.share?.externalCollaborator?.enabled === true
-    const projectId = doc.projectId
+    const projectId = doc.engagementId
     const externalId = doc.externalId
 
     let connectorId = doc.connectorId
-    if (!connectorId && doc.project?.organizationId) {
-      const org = await (prisma as any).organization.findUnique({
-        where: { id: doc.project.organizationId },
+    if (!connectorId && doc.firmId) {
+      const org = await prisma.firm.findUnique({
+        where: { id: doc.firmId },
         select: { connectorId: true },
       })
-      connectorId = org?.connectorId
+      connectorId = org?.connectorId ?? null
     }
 
     if (!connectorId) {
-      logger.error('No active Google Drive connector found for organization', undefined, undefined, { organizationId: doc.project?.organizationId })
+      logger.error('No active Google Drive connector found for organization', undefined, undefined, {
+        organizationId: doc.firmId,
+      })
       return
     }
 
@@ -46,22 +48,26 @@ export async function syncDocumentSharingUsers(projectDocumentId: string) {
         }
       }
 
-      await (prisma as any).projectDocumentSharingUser.deleteMany({
+      await prisma.engagementDocumentSharingUser.updateMany({
         where: { projectDocumentId },
+        data: {
+          sharingPermissionStatus: DocumentSharingPermissionStatus.REVOKED,
+          googlePermissionId: null,
+        },
       })
       return
     }
 
-    const externalCollaborators = await (prisma as any).projectMember.findMany({
+    const externalCollaborators = await prisma.engagementMember.findMany({
       where: {
-        projectId,
-        role: 'eng_ext_collaborator',
+        engagementId: projectId,
+        role: EngagementRole.eng_ext_collaborator,
       },
     })
 
     if (externalCollaborators.length === 0) return
 
-    const userIds = externalCollaborators.map((m: any) => m.userId)
+    const userIds = externalCollaborators.map((m) => m.userId)
     const authUsers = await prisma.$queryRawUnsafe<Array<{ id: string; email: string }>>(
       `SELECT id::text, email FROM auth.users WHERE id IN (${userIds.map((id: string) => `'${id}'`).join(',')})`
     )
@@ -72,30 +78,42 @@ export async function syncDocumentSharingUsers(projectDocumentId: string) {
       const email = userEmailMap.get(member.userId)
       if (!email) continue
 
-      const existingUserShare = doc.sharingUsers.find((u: any) => u.userId === member.userId)
-      if (existingUserShare) continue
+      const existingUserShare = doc.sharingUsers.find((u) => u.userId === member.userId)
+      if (existingUserShare?.sharingPermissionStatus === DocumentSharingPermissionStatus.GRANTED) continue
 
       try {
         if (!externalId) continue
         const message = `You've been granted access to "${doc.fileName || 'a document'}" in Pockett.`
         const permissionId = await googleDriveConnector.grantFolderPermission(connectorId, externalId, email, 'writer')
 
-        await (prisma as any).projectDocumentSharingUser.create({
-          data: {
-            projectDocumentId,
-            projectId,
-            userId: member.userId,
-            email,
-            googlePermissionId: permissionId,
-          },
-        })
+        if (existingUserShare) {
+          await prisma.engagementDocumentSharingUser.update({
+            where: { id: existingUserShare.id },
+            data: {
+              googlePermissionId: permissionId,
+              sharingPermissionStatus: DocumentSharingPermissionStatus.GRANTED,
+              email,
+            },
+          })
+        } else {
+          await prisma.engagementDocumentSharingUser.create({
+            data: {
+              projectDocumentId,
+              engagementId: projectId,
+              userId: member.userId,
+              email,
+              googlePermissionId: permissionId,
+              sharingPermissionStatus: DocumentSharingPermissionStatus.GRANTED,
+            },
+          })
+        }
       } catch (e) {
         logger.error(`Failed to grant drive permission to ${email}`, e as Error)
       }
     }
 
-    const validUserIds = new Set(externalCollaborators.map((m: any) => m.userId))
-    const usersToRemove = doc.sharingUsers.filter((u: any) => !validUserIds.has(u.userId))
+    const validUserIds = new Set(externalCollaborators.map((m) => m.userId))
+    const usersToRemove = doc.sharingUsers.filter((u) => !validUserIds.has(u.userId))
 
     for (const userToRemove of usersToRemove) {
       if (userToRemove.googlePermissionId && externalId) {
@@ -105,8 +123,12 @@ export async function syncDocumentSharingUsers(projectDocumentId: string) {
           logger.error('Failed to revoke permission for removed member', e as Error)
         }
       }
-      await (prisma as any).projectDocumentSharingUser.delete({
+      await prisma.engagementDocumentSharingUser.update({
         where: { id: userToRemove.id },
+        data: {
+          sharingPermissionStatus: DocumentSharingPermissionStatus.REVOKED,
+          googlePermissionId: null,
+        },
       })
     }
   } catch (error) {

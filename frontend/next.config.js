@@ -27,9 +27,19 @@ const nextConfig = {
 
   async redirects() {
     return [
+      { source: '/solutions', destination: '/', permanent: true },
+      { source: '/solutions/consulting', destination: '/', permanent: true },
+      { source: '/solutions/accounting', destination: '/', permanent: true },
+      { source: '/solutions/:path*', destination: '/', permanent: true },
+      { source: '/firma-redesign', destination: '/', permanent: true },
+      { source: '/firma-redesign/:path*', destination: '/', permanent: true },
       { source: '/resources', destination: '/resources/docs', permanent: true },
       { source: '/docs', destination: '/resources/docs', permanent: true },
       { source: '/docs/:path*', destination: '/resources/docs/:path*', permanent: true },
+      { source: '/faq', destination: '/resources/faq', permanent: true },
+      { source: '/trust-center', destination: '/resources/trust-center', permanent: true },
+      { source: '/blog', destination: '/resources/blog', permanent: true },
+      { source: '/blog/:path*', destination: '/resources/blog/:path*', permanent: true },
     ]
   },
 

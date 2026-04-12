@@ -26,19 +26,17 @@ export function WorkspaceLoader({
 
             {/* Loading Text */}
             <div className="text-center space-y-2">
-                <p className="text-base font-semibold text-slate-900">
-                    {title}
+                <p className="text-base font-semibold text-slate-900 inline-flex items-center">
+                    <span>{title}</span>
+                    <span className="ml-1 inline-flex gap-0.5" aria-hidden="true">
+                        <span className="h-1.5 w-1.5 rounded-full bg-slate-900 animate-bounce [animation-delay:0ms]" />
+                        <span className="h-1.5 w-1.5 rounded-full bg-slate-900 animate-bounce [animation-delay:150ms]" />
+                        <span className="h-1.5 w-1.5 rounded-full bg-slate-900 animate-bounce [animation-delay:300ms]" />
+                    </span>
                 </p>
                 <p className="text-sm text-slate-500">
                     {subtitle}
                 </p>
-            </div>
-
-            {/* Progress indicator dots */}
-            <div className="flex items-center gap-2">
-                <div className="h-2 w-2 bg-slate-900 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                <div className="h-2 w-2 bg-slate-900 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                <div className="h-2 w-2 bg-slate-900 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
             </div>
         </div>
     )

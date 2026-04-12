@@ -6,6 +6,12 @@ import { FirmService } from '@/lib/firm-service'
 import { invalidateUserSettingsPlus } from '@/lib/actions/user-settings'
 import { googleDriveConnector } from '@/lib/google-drive-connector'
 import { createAdminClient } from '@/utils/supabase/admin'
+import {
+    requireNonSandboxFirmCreationAccess,
+    resolveBillingAnchorForNewSatelliteFirm,
+} from '@/lib/billing/firm-creation-gate'
+import { ensurePolarFreePlanForSandboxFirm } from '@/lib/billing/polar-free-plan'
+import { mergeLeanAppMetadata } from '@/lib/auth/supabase-jwt-metadata'
 
 export async function POST(request: NextRequest) {
     try {
@@ -27,6 +33,25 @@ export async function POST(request: NextRequest) {
         const userId = user.id
         const body = await request.json()
         const { connectionId, name, sandboxOnly, allowDomainAccess } = body
+
+        let billingAnchorId: string | null = null
+        if (!sandboxOnly) {
+            try {
+                await requireNonSandboxFirmCreationAccess(userId)
+            } catch (gateError) {
+                return NextResponse.json(
+                    { error: gateError instanceof Error ? gateError.message : 'Upgrade required' },
+                    { status: 402 }
+                )
+            }
+            billingAnchorId = await resolveBillingAnchorForNewSatelliteFirm(userId)
+            if (!billingAnchorId) {
+                return NextResponse.json(
+                    { error: 'Could not attach this workspace to your subscription. Please try again.' },
+                    { status: 500 }
+                )
+            }
+        }
 
         if (!connectionId) {
             return NextResponse.json({ error: 'Missing connectionId' }, { status: 400 })
@@ -52,7 +77,25 @@ export async function POST(request: NextRequest) {
             firmName: name.trim(),
             connectorId: connectionId,
             allowDomainAccess: sandboxOnly ? false : (allowDomainAccess ?? true),
-            sandboxOnly: !!sandboxOnly
+            sandboxOnly: !!sandboxOnly,
+            billingSharesSubscriptionFromFirmId: billingAnchorId ?? undefined,
+        })
+
+        // Persist onboarding progress on firm.settings (firm-first onboarding source of truth).
+        await prisma.firm.update({
+            where: { id: firm.id },
+            data: {
+                settings: {
+                    ...(firm.settings as Record<string, unknown> ?? {}),
+                    onboarding: {
+                        currentStep: 3,
+                        isComplete: !sandboxOnly,
+                        driveConnected: true,
+                        stage: sandboxOnly ? 'sandbox_created' : 'workspace_created',
+                        lastUpdated: new Date().toISOString(),
+                    },
+                },
+            },
         })
 
         // 2. Update connector with onboarding progress (fetch once, reuse below for Drive setup)
@@ -87,10 +130,8 @@ export async function POST(request: NextRequest) {
         // Drive setup (must happen before JWT so orgFolderId is available)
         if (connectionId && connector && connector.status === 'ACTIVE') {
             try {
-                const driveSettings = (connector.settings as any) || {}
-                // Use parentFolderId (the user-selected Pockett Workspace folder) as the base for new org folders.
-                // rootFolderId points to the .pockett metadata subfolder — using it would create org folders hidden inside .pockett.
-                const driveRootFolderId = driveSettings.parentFolderId || driveSettings.rootFolderId || 'root'
+                // Never use Drive pseudo-parent `root` — firm folders belong under `_firma_workspace_…`.
+                const driveRootFolderId = await googleDriveConnector.resolveWorkspaceRootFolderId(connectionId)
 
                 logger.info('Setting up Firm folder using unified service', {
                     firmName: firm.name,
@@ -124,14 +165,12 @@ export async function POST(request: NextRequest) {
             adminClient.auth.admin.updateUserById(userId, {
                 user_metadata: {
                     ...user.user_metadata,
+                },
+                app_metadata: mergeLeanAppMetadata(user.app_metadata as Record<string, unknown>, {
                     active_firm_id: firm.id,
                     active_firm_slug: firm.slug,
                     active_persona: 'firm_admin',
-                },
-                app_metadata: {
-                    active_firm_id: firm.id,
-                    active_persona: 'firm_admin',
-                }
+                }),
             }).then(() => {
                 logger.info('JWT metadata injected during onboarding (create-org)', { userId, firmId: firm.id })
             }).catch((jwtError: Error) => {
@@ -139,6 +178,21 @@ export async function POST(request: NextRequest) {
             }),
             invalidateUserSettingsPlus(userId),
         ])
+
+        if (sandboxOnly) {
+            const customerName =
+                [user.user_metadata?.first_name, user.user_metadata?.last_name]
+                    .map((s) => (typeof s === 'string' ? s.trim() : ''))
+                    .filter(Boolean)
+                    .join(' ')
+                    .trim() || null
+            await ensurePolarFreePlanForSandboxFirm({
+                firmId: firm.id,
+                userEmail: user.email || '',
+                customerName,
+                userId,
+            })
+        }
 
         return NextResponse.json({
             success: true,

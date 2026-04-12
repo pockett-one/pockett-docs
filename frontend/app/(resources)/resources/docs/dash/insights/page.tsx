@@ -1,4 +1,5 @@
 import { BarChart3, Shield, AlertTriangle, Clock, Users, FileWarning, Activity } from "lucide-react"
+import { BRAND_NAME } from "@/config/brand"
 import { DocSection } from "@/components/docs/doc-section"
 import { InfoBox } from "@/components/docs/info-box"
 import { ActivityHubPreview } from "@/components/docs/insights/ActivityHubPreview"
@@ -123,7 +124,7 @@ export default function InsightsPage() {
             {/* Security Alerts */}
             <DocSection title="Security Alerts & Risk Detection" icon={Shield} color="red">
                 <p className="text-gray-600 mb-4">
-                    Pockett automatically scans your Drive for security risks and alerts you to potential issues.
+                    {BRAND_NAME} automatically scans your Drive for security risks and alerts you to potential issues.
                 </p>
                 <div className="space-y-4">
                     <div className="bg-red-50 border border-red-200 rounded-lg p-4">
@@ -244,7 +245,7 @@ export default function InsightsPage() {
             {/* Sensitive Data */}
             <DocSection title="Sensitive Data Identification" icon={Shield} color="indigo">
                 <p className="text-gray-600 mb-4">
-                    Pockett helps identify files that may contain sensitive information.
+                    {BRAND_NAME} helps identify files that may contain sensitive information.
                 </p>
                 <div className="bg-gray-50 rounded-lg p-4 space-y-3">
                     <h3 className="font-semibold text-gray-900">Detection patterns:</h3>

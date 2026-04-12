@@ -36,6 +36,9 @@ export const projectService = {
             throw new Error('Could not generate a unique project slug. Please try again.')
         }
 
+        const { assertWithinActiveEngagementCap } = await import('@/lib/billing/effective-billing-caps')
+        await assertWithinActiveEngagementCap(firmId)
+
         // 2. Execute creation in transaction (RBAC v2: add creator + Client Admins & Firm Admins as Engagement Leads; no duplicates)
         const result = await prisma.$transaction(async (tx) => {
             const project = await tx.engagement.create({
@@ -127,6 +130,10 @@ export const projectService = {
                     )
 
                     if (fs.projectId) {
+                        await prisma.engagement.update({
+                            where: { id: result.id },
+                            data: { connectorRootFolderId: fs.projectId }
+                        })
                         result.connectorRootFolderId = fs.projectId
                     }
                     folderStructure = {

@@ -3,6 +3,14 @@ import { prisma } from '@/lib/prisma'
 import { GoogleDriveConnector } from '@/lib/google-drive-connector'
 import { createClient } from '@/utils/supabase/server'
 import { getFileInfo } from '@/lib/file-utils'
+import { DocumentSharingPermissionStatus } from '@prisma/client'
+import {
+  getEngagementStatus,
+  isEngagementMemberReadOnlyWhenCompleted,
+  isExternalEngagementRole,
+  requireEngagementMember,
+} from '@/lib/engagement-access'
+import { isDocumentVersionLocked } from '@/lib/document-version-lock'
 
 export async function POST(
     _request: NextRequest,
@@ -21,11 +29,16 @@ export async function POST(
         const fileInfo = await getFileInfo(projectId, documentIdParam)
         if (!fileInfo) return NextResponse.json({ error: 'File not found' }, { status: 404 })
 
-        const document = await (prisma as any).projectDocument.findUnique({
+        const projectMember = await requireEngagementMember(projectId, user.id)
+        if (!projectMember) {
+            return NextResponse.json({ error: 'Not found' }, { status: 404 })
+        }
+
+        const document = await prisma.engagementDocument.findUnique({
             where: {
-                projectId_organizationId_externalId: {
-                    projectId,
-                    organizationId: fileInfo.organizationId,
+                engagementId_firmId_externalId: {
+                    engagementId: projectId,
+                    firmId: fileInfo.organizationId,
                     externalId: fileInfo.externalId,
                 },
             },
@@ -33,7 +46,7 @@ export async function POST(
 
         if (!document) return NextResponse.json({ error: 'Document not found' }, { status: 404 })
 
-        let sharingUser = await (prisma as any).projectDocumentSharingUser.findFirst({
+        let sharingUser = await prisma.engagementDocumentSharingUser.findFirst({
             where: {
                 projectDocumentId: document.id,
                 userId: user.id,
@@ -41,38 +54,33 @@ export async function POST(
             include: { document: true },
         })
 
+        const engagementStatus = await getEngagementStatus(projectId)
+        if (
+            sharingUser?.sharingPermissionStatus === DocumentSharingPermissionStatus.REVOKED &&
+            engagementStatus === 'COMPLETED'
+        ) {
+            return NextResponse.json({ error: 'This secure access link was revoked.' }, { status: 403 })
+        }
+
         if (!sharingUser) {
-            const [orgMember, projectMember] = await Promise.all([
-                (prisma as any).orgMember.findFirst({
-                    where: { organizationId: fileInfo.organizationId, userId: user.id },
-                }),
-                prisma.engagementMember.findFirst({
-                    where: { engagementId: projectId, userId: user.id },
-                }),
-            ])
-
-            const projectPersonaSlug = projectMember?.role
-            const isExternalRole = ['eng_ext_collaborator', 'eng_viewer'].includes(projectPersonaSlug || '')
-
-            if (!orgMember && !isExternalRole) {
-                return NextResponse.json({ error: 'Not authorized for secure access' }, { status: 403 })
-            }
-
-            if (!orgMember && isExternalRole) {
-                const isExtCollab = (document.settings as any)?.share?.externalCollaborator?.enabled
-                const isGuest = (document.settings as any)?.share?.guest?.enabled
+            if (isExternalEngagementRole(projectMember.role)) {
+                const isExtCollab = (document.settings as Record<string, unknown>)?.share &&
+                    ((document.settings as any)?.share?.externalCollaborator?.enabled === true)
+                const isGuest = (document.settings as Record<string, unknown>)?.share &&
+                    ((document.settings as any)?.share?.guest?.enabled === true)
 
                 if (!isExtCollab && !isGuest) {
                     return NextResponse.json({ error: 'File is not shared with external users' }, { status: 403 })
                 }
             }
 
-            sharingUser = await (prisma as any).projectDocumentSharingUser.create({
+            sharingUser = await prisma.engagementDocumentSharingUser.create({
                 data: {
                     projectDocumentId: document.id,
-                    projectId,
+                    engagementId: projectId,
                     userId: user.id,
                     email,
+                    sharingPermissionStatus: DocumentSharingPermissionStatus.GRANTED,
                 },
                 include: { document: true },
             })
@@ -80,7 +88,7 @@ export async function POST(
 
         let connectorId = document.connectorId
         if (!connectorId && fileInfo.organizationId) {
-            const org = await (prisma as any).organization.findUnique({
+            const org = await prisma.firm.findUnique({
                 where: { id: fileInfo.organizationId },
                 include: { connector: true },
             })
@@ -97,18 +105,21 @@ export async function POST(
 
         if (sharingUser.googlePermissionId) {
             await drive.revokePermission(connectorId, fileInfo.externalId, sharingUser.googlePermissionId)
-            await (prisma as any).projectDocumentSharingUser.update({
+            await prisma.engagementDocumentSharingUser.update({
                 where: { id: sharingUser.id },
                 data: { googlePermissionId: null },
             })
         }
 
-        const projectMemberForRole = await prisma.engagementMember.findFirst({
-            where: { engagementId: projectId, userId: user.id },
-        })
+        const versionLocked = isDocumentVersionLocked(document.settings)
 
-        const isGuest = projectMemberForRole?.role === 'eng_viewer'
-        const role: 'writer' | 'reader' = isGuest ? 'reader' : 'writer'
+        let role: 'writer' | 'reader' = projectMember.role === 'eng_viewer' ? 'reader' : 'writer'
+        if (engagementStatus && isEngagementMemberReadOnlyWhenCompleted(engagementStatus, projectMember.role)) {
+            role = 'reader'
+        }
+        if (versionLocked) {
+            role = 'reader'
+        }
 
         const fileName = document.fileName || 'a document'
         const message = `POCKETT SECURE ACCESS\n\nYou have requested to open "${fileName}". For your security, Google Drive requires a one-time email verification. Please click the "Open" button below to receive your one-time passcode and access the document.`
@@ -119,9 +130,12 @@ export async function POST(
             return NextResponse.json({ error: 'Failed to re-grant Google Drive permission' }, { status: 500 })
         }
 
-        await (prisma as any).projectDocumentSharingUser.update({
+        await prisma.engagementDocumentSharingUser.update({
             where: { id: sharingUser.id },
-            data: { googlePermissionId: permissionId },
+            data: {
+                googlePermissionId: permissionId,
+                sharingPermissionStatus: DocumentSharingPermissionStatus.GRANTED,
+            },
         })
 
         return NextResponse.json({ success: true })

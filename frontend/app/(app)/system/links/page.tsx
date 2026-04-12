@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
+import { getPlatformSiteOrigin } from "@/config/platform-domain"
 import { Copy, Check, Linkedin, Twitter, Facebook, Mail, Shield, ChevronRight } from "lucide-react"
 
 const DiscordIcon = ({ className }: { className?: string }) => (
@@ -79,7 +80,9 @@ const LinkGenerator = ({
 }
 
 export default function LinksPage() {
-    const [baseUrl, setBaseUrl] = useState('https://pockett.io')
+    const [baseUrl, setBaseUrl] = useState(
+        () => process.env.NEXT_PUBLIC_APP_URL || getPlatformSiteOrigin()
+    )
 
     useEffect(() => {
         if (typeof window !== 'undefined') {

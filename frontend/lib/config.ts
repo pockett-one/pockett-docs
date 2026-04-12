@@ -33,6 +33,21 @@ export const getAppUrl = (): string => {
 }
 
 /**
+ * Client: origin for Supabase OAuth `redirectTo`. On localhost always `http://` —
+ * `next dev` has no TLS; `https://localhost` causes ERR_SSL_PROTOCOL_ERROR.
+ */
+export const getOAuthRedirectOrigin = (): string => {
+  if (typeof window === 'undefined') {
+    return getAppUrl()
+  }
+  const { hostname, port } = window.location
+  if (hostname === 'localhost' || hostname === '127.0.0.1') {
+    return `http://${hostname}${port ? `:${port}` : ''}`
+  }
+  return window.location.origin
+}
+
+/**
  * Get the API base URL
  */
 export const getApiUrl = (): string => {
@@ -61,6 +76,36 @@ export const getSupabaseUrl = (): string => {
   }
 
   return 'http://127.0.0.1:54321'
+}
+
+/**
+ * Server-only: Google Drive OAuth client id + secret for token exchange and refresh.
+ * Many deployments set GOOGLE_CLIENT_* for Supabase but only duplicate GOOGLE_DRIVE_CLIENT_ID.
+ * When both env client IDs are the same Web client, reuse GOOGLE_CLIENT_SECRET so refresh
+ * does not hit Google's token endpoint with a missing/wrong secret (401 unauthorized_client).
+ */
+export function getGoogleDriveOAuthServerCredentials(): { clientId: string; clientSecret: string } {
+  const clientId = process.env.GOOGLE_DRIVE_CLIENT_ID?.trim()
+  const driveSecret = process.env.GOOGLE_DRIVE_CLIENT_SECRET?.trim()
+  const supabaseClientId = process.env.GOOGLE_CLIENT_ID?.trim()
+  const supabaseSecret = process.env.GOOGLE_CLIENT_SECRET?.trim()
+
+  if (!clientId) {
+    throw new Error('GOOGLE_DRIVE_CLIENT_ID is not configured')
+  }
+
+  let clientSecret = driveSecret
+  if (!clientSecret && supabaseSecret && clientId === supabaseClientId) {
+    clientSecret = supabaseSecret
+  }
+
+  if (!clientSecret) {
+    throw new Error(
+      'GOOGLE_DRIVE_CLIENT_SECRET is not set. Use the Web client secret from Google Cloud Console, or when GOOGLE_DRIVE_CLIENT_ID matches GOOGLE_CLIENT_ID, set GOOGLE_DRIVE_CLIENT_SECRET to the same value as GOOGLE_CLIENT_SECRET.'
+    )
+  }
+
+  return { clientId, clientSecret }
 }
 
 /**

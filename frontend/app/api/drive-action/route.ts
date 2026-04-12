@@ -6,6 +6,7 @@ import { googleDriveConnector } from "@/lib/google-drive-connector"
 import { safeInngestSend } from '@/lib/inngest/client'
 import { logger } from '@/lib/logger'
 import { createPlatformAuditEvent } from '@/lib/platform-audit'
+import { blockIfEngagementFileMutationForbidden } from '@/lib/engagement-access'
 
 const supabase = createClient(
     (process.env.NEXT_PUBLIC_SUPABASE_URL || "http://127.0.0.1:54321"),
@@ -37,27 +38,29 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Action is required' }, { status: 400 })
         }
 
-        // 3. Get Active Connectors - SEARCH ACROSS ALL USER RELATIONSHIONS (Org, Client, Project)
-        const orgMemberships = await (prisma as any).orgMember.findMany({
+        // 3. Get Active Connectors — firm / client / engagement memberships (firm id = org scope)
+        const firmMemberships = await prisma.firmMember.findMany({
             where: { userId: user.id },
-            select: { organizationId: true }
+            select: { firmId: true },
         })
 
-        const clientMemberships = await (prisma as any).clientMember.findMany({
+        const clientMemberships = await prisma.clientMember.findMany({
             where: { userId: user.id },
-            include: { client: { select: { organizationId: true } } }
+            include: { client: { select: { firmId: true } } },
         })
 
-        const projectMemberships = await (prisma as any).projectMember.findMany({
+        const engagementMemberships = await prisma.engagementMember.findMany({
             where: { userId: user.id },
-            include: { project: { include: { client: { select: { organizationId: true } } } } }
+            include: { engagement: { select: { firmId: true } } },
         })
 
-        const allOrgIds = Array.from(new Set([
-            ...orgMemberships.map((m: any) => m.organizationId),
-            ...clientMemberships.map((m: any) => m.client.organizationId),
-            ...projectMemberships.map((m: any) => m.project.client.organizationId)
-        ]))
+        const allOrgIds = Array.from(
+            new Set([
+                ...firmMemberships.map((m) => m.firmId),
+                ...clientMemberships.map((m) => m.client.firmId),
+                ...engagementMemberships.map((m) => m.engagement.firmId),
+            ])
+        )
 
         const orgsWithConnectors = await prisma.firm.findMany({
             where: {
@@ -94,10 +97,12 @@ export async function POST(request: NextRequest) {
                 // Sandbox restriction: disallow deletes for sandbox orgs.
                 // Prefer project-scoped determination when available; otherwise infer via connector mapping.
                 const orgIdForTrash = requestProjectId
-                    ? (await (prisma as any).project.findFirst({
-                        where: { id: requestProjectId, isDeleted: false },
-                        select: { organizationId: true }
-                    }))?.organizationId
+                    ? (
+                          await prisma.engagement.findFirst({
+                              where: { id: requestProjectId, isDeleted: false },
+                              select: { firmId: true },
+                          })
+                      )?.firmId
                     : (connectorId
                         ? connectors.find(c => c.id === connectorId)?.organizationId
                         : connectors[0]?.organizationId)
@@ -110,6 +115,11 @@ export async function POST(request: NextRequest) {
                     if (org?.sandboxOnly) {
                         return NextResponse.json({ error: 'Deleting documents is restricted for Sandbox Organizations.' }, { status: 403 })
                     }
+                }
+
+                if (typeof requestProjectId === 'string' && requestProjectId) {
+                    const closedDenied = await blockIfEngagementFileMutationForbidden(user.id, requestProjectId)
+                    if (closedDenied) return closedDenied
                 }
 
                 // Try to trash the file. If connectorId is provided, use it.
@@ -163,17 +173,21 @@ export async function POST(request: NextRequest) {
                 // Project-scoped audit: record file removed (moved to bin) when projectId is provided
                 if (requestProjectId) {
                     try {
-                        const project = await (prisma as any).project.findFirst({
+                        const project = await prisma.engagement.findFirst({
                             where: { id: requestProjectId, isDeleted: false },
-                            select: { organizationId: true, clientId: true },
+                            select: { firmId: true, clientId: true },
                         })
                         if (project) {
-                            const doc = await (prisma as any).projectDocument.findFirst({
-                                where: { projectId: requestProjectId, organizationId: project.organizationId, externalId: fileId },
+                            const doc = await prisma.engagementDocument.findFirst({
+                                where: {
+                                    engagementId: requestProjectId,
+                                    firmId: project.firmId,
+                                    externalId: fileId,
+                                },
                                 select: { id: true },
                             })
                             await createPlatformAuditEvent({
-                                organizationId: project.organizationId,
+                                organizationId: project.firmId,
                                 clientId: project.clientId,
                                 projectId: requestProjectId,
                                 projectDocumentId: doc?.id ?? undefined,

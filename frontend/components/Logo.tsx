@@ -1,58 +1,14 @@
 import React from 'react';
-import { BRAND_NAME, BRAND_PRIMARY_COLOR } from '@/config/brand';
+import { BRAND_NAME, BRAND_LOGO_COLOR } from '@/config/brand';
+import { BrandMarkIcon } from '@/components/brand/BrandMarkIcon';
+import { BrandName } from '@/components/brand/BrandName';
+import { cn } from '@/lib/utils';
 
-const DEFAULT_BRAND_COLOR = BRAND_PRIMARY_COLOR;
+const DEFAULT_BRAND_COLOR = BRAND_LOGO_COLOR;
 
-/** 3x3 grid: squares 1,2,4,5,7 filled (P shape); 3,6,8,9 outline only, like Material widget icon. */
-function PIcon({ className, sizeClass, color = DEFAULT_BRAND_COLOR }: { className?: string; sizeClass: string; color?: string }) {
-  const strokeColor = color;
-  const view = 12;
-  const gap = 0.72; // spacing between rects
-  const cell = (view - 2 * gap) / 3; // 3 cells + 2 gaps = view
-  const strokeWidth = 0.22;
-
-  const cellAt = (col: number, row: number) => ({
-    x: col * (cell + gap),
-    y: row * (cell + gap),
-  });
-
-  const filled = [
-    [0, 0], [1, 0], [0, 1], [1, 1], [0, 2], // 1,2,4,5,7 = P
-  ] as const;
-  const outline = [
-    [2, 0], [2, 1], [1, 2], [2, 2], // 3,6,8,9 = empty with border
-  ] as const;
-
-  return (
-    <svg
-      className={`${sizeClass} ${className ?? ''}`}
-      viewBox={`0 0 ${view} ${view}`}
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      aria-hidden
-    >
-      {filled.map(([col, row]) => {
-        const { x, y } = cellAt(col, row);
-        return <rect key={`f-${col}-${row}`} x={x} y={y} width={cell} height={cell} fill={color} />;
-      })}
-      {outline.map(([col, row]) => {
-        const { x, y } = cellAt(col, row);
-        return (
-          <rect
-            key={`o-${col}-${row}`}
-            x={x + strokeWidth / 2}
-            y={y + strokeWidth / 2}
-            width={cell - strokeWidth}
-            height={cell - strokeWidth}
-            fill="none"
-            stroke={strokeColor}
-            strokeWidth={strokeWidth}
-          />
-        );
-      })}
-    </svg>
-  );
-}
+/** Neon CTA green — prominent circular separators in the default tagline. */
+const TAGLINE_DOT_CLASS =
+  'inline-block h-1 w-1 shrink-0 rounded-full bg-[#72ff70]';
 
 export interface OrganizationBranding {
   logoUrl?: string | null;
@@ -65,25 +21,62 @@ interface LogoProps {
   className?: string;
   size?: 'sm' | 'md' | 'lg' | 'xl';
   showText?: boolean;
+  /** Merged onto `BrandName` for the default platform lockup (e.g. `text-2xl` in the global header). */
+  wordmarkClassName?: string;
+  /** Light wordmark + lime mark for dark kinetic surfaces (e.g. auth). */
+  variant?: 'default' | 'onDark';
   /** When set, replaces default platform branding with org logo/name/theme. */
   branding?: OrganizationBranding | null;
 }
 
 const DEFAULT_DISPLAY_NAME = BRAND_NAME;
 
-export default function Logo({ className = '', size = 'md', showText = true, branding }: LogoProps) {
+function BrandNameOrCustom({
+  displayName,
+  className,
+  style,
+}: {
+  displayName: string;
+  className?: string;
+  style?: React.CSSProperties;
+}) {
+  if (displayName === BRAND_NAME) {
+    return <BrandName className={className} style={style} />;
+  }
+  return (
+    <span className={className} style={style}>
+      {displayName}
+    </span>
+  );
+}
+
+function DefaultTagline({ onDark }: { onDark?: boolean }) {
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 text-[10px] font-medium leading-tight tracking-wide sm:text-[11px] [font-family:var(--font-kinetic-headline),system-ui,sans-serif] ${onDark ? 'text-slate-400' : 'text-[#45474c]'}`}
+    >
+      <span>Organize</span>
+      <span aria-hidden className={TAGLINE_DOT_CLASS} />
+      <span>Protect</span>
+      <span aria-hidden className={TAGLINE_DOT_CLASS} />
+      <span>Deliver</span>
+    </span>
+  );
+}
+
+export default function Logo({
+  className = '',
+  size = 'md',
+  showText = true,
+  wordmarkClassName,
+  variant = 'default',
+  branding,
+}: LogoProps) {
   const iconSizes: Record<string, string> = {
     sm: 'h-6 w-6',
     md: 'h-8 w-8',
     lg: 'h-10 w-10',
     xl: 'h-[50px] w-[50px]',
-  };
-
-  const iconHeights: Record<string, string> = {
-    sm: 'h-6',
-    md: 'h-8',
-    lg: 'h-10',
-    xl: 'h-[50px]',
   };
 
   const textSizes: Record<string, string> = {
@@ -96,9 +89,6 @@ export default function Logo({ className = '', size = 'md', showText = true, bra
   const useBranding = branding?.logoUrl ?? branding?.name ?? branding?.themeColor;
   const themeColorTrimmed = branding?.themeColor?.trim() || '';
   const themeHex = themeColorTrimmed.match(/^#[0-9A-Fa-f]{6}$/) ? themeColorTrimmed : DEFAULT_BRAND_COLOR;
-
-  const iconClass = `${iconSizes[size]} shrink-0`;
-  const iconColor = useBranding && themeHex ? themeHex : DEFAULT_BRAND_COLOR;
 
   const brandNameClass = useBranding
     ? `${textSizes[size]} font-semibold`
@@ -119,27 +109,34 @@ export default function Logo({ className = '', size = 'md', showText = true, bra
 
   const isDefaultPlatformBrand = !useBranding && displayName === DEFAULT_DISPLAY_NAME;
 
-  // Default platform brand: one container (height = icon). Grid enforces row height; brand top, subtext bottom.
+  const brandTextSize =
+    size === 'sm' ? 'text-xs' : size === 'md' ? 'text-sm' : size === 'lg' ? 'text-base' : 'text-lg';
+
+  // Default platform brand: square-function mark + wordmark + tagline.
+  // `group` lets `BrandName` / `BrandMarkIcon` use `group-hover:` for the full lockup.
   if (showText && isDefaultPlatformBrand) {
-    const gridHeight = iconHeights[size];
-    const brandTextSize = size === 'sm' ? 'text-xs' : size === 'md' ? 'text-sm' : size === 'lg' ? 'text-base' : 'text-lg';
     return (
       <div
-        className={`inline-grid grid-cols-[auto_1fr] grid-rows-1 items-stretch gap-2 ${gridHeight} ${className}`}
+        className={cn('group inline-flex min-w-0 flex-col justify-center gap-0.5', className)}
         style={useBranding && themeHex ? { ['--logo-theme' as string]: themeHex } : undefined}
       >
-        <div className="flex items-center justify-center">
-          <PIcon sizeClass={iconClass} color={iconColor} />
-        </div>
-        <div className="flex min-h-0 flex-col justify-between overflow-hidden">
-          <span className="inline-flex shrink-0 items-baseline leading-none">
-            <span className={`${brandTextSize} font-semibold`} style={{ color: DEFAULT_BRAND_COLOR }}>
-              {displayName}
-            </span>
-          </span>
-          <span className="shrink-0 text-[10px] leading-tight text-gray-500 tracking-wide">
-            Organize. Protect. Deliver.
-          </span>
+        <span
+          className={cn(
+            'inline-flex min-w-0 shrink-0 items-center gap-2 leading-none',
+            wordmarkClassName ?? brandTextSize,
+          )}
+        >
+          <BrandMarkIcon
+            variant={variant === 'onDark' ? 'onDark' : 'default'}
+            className="h-[0.88em] w-[0.88em]"
+          />
+          <BrandName
+            gradient={variant !== 'onDark'}
+            className={cn('min-w-0', variant === 'onDark' && '!text-white')}
+          />
+        </span>
+        <div className="min-w-0 self-start">
+          <DefaultTagline onDark={variant === 'onDark'} />
         </div>
       </div>
     );
@@ -147,16 +144,19 @@ export default function Logo({ className = '', size = 'md', showText = true, bra
 
   return (
     <div
-      className={hasSubtextRow ? `flex items-center gap-3 ${className}` : `inline-flex items-center ${className}`}
+      className={cn(
+        'group',
+        hasSubtextRow ? `flex items-center gap-3 ${className}` : `inline-flex items-center ${className}`,
+      )}
       style={useBranding && themeHex ? { ['--logo-theme' as string]: themeHex } : undefined}
     >
-      <div className="inline-flex items-center shrink-0">
+      <div className="inline-flex shrink-0 items-center">
         {useBranding && branding?.logoUrl ? (
           <span className={logoContainerClass}>
             <img
               src={branding.logoUrl}
               alt=""
-              className="w-full h-full object-contain"
+              className="h-full w-full object-contain"
               style={{ color: themeHex }}
             />
           </span>
@@ -168,32 +168,33 @@ export default function Logo({ className = '', size = 'md', showText = true, bra
             {initial}
           </span>
         ) : (
-          <PIcon sizeClass={iconClass} color={iconColor} />
+          <span className={cn('inline-flex items-center gap-1.5', textSizes[size], wordmarkClassName)}>
+            <BrandMarkIcon className="h-[0.9em] w-[0.9em]" />
+            <BrandName className="min-w-0 leading-none" />
+          </span>
         )}
       </div>
       {showText && (
         hasSubtextRow ? (
-          <div className="flex flex-col justify-center min-w-0">
-            <span
+          <div className="flex min-w-0 flex-col justify-center">
+            <BrandNameOrCustom
+              displayName={displayName}
               className={`${brandNameClass} leading-tight`}
               style={useBranding ? { color: brandNameColor } : (themeHex ? { color: themeHex } : undefined)}
-            >
-              {displayName}
-            </span>
-            <span className="mt-0.5 text-[11px] text-gray-500 leading-tight">
+            />
+            <span className="mt-0.5 text-[11px] leading-tight text-gray-500">
               {branding!.subtext}
             </span>
           </div>
         ) : (
-          <div className="inline-flex items-center ml-2">
-            <span
+          <div className="ml-2 inline-flex items-center">
+            <BrandNameOrCustom
+              displayName={displayName}
               className={brandNameClass}
               style={useBranding ? { color: brandNameColor } : (themeHex ? { color: themeHex } : undefined)}
-            >
-              {displayName}
-            </span>
+            />
             {useBranding && branding?.subtext && (
-              <span className="ml-2 text-gray-500 text-sm hidden sm:inline">{branding.subtext}</span>
+              <span className="ml-2 hidden text-sm text-gray-500 sm:inline">{branding.subtext}</span>
             )}
           </div>
         )

@@ -212,7 +212,7 @@ class ChatStorageService {
       sessions.unshift(newSession)
       sessions.splice(this.maxSessions) // Keep only maxSessions
 
-      localStorage.setItem('pockett_chat_sessions', JSON.stringify(sessions))
+      localStorage.setItem('fm_chat_sessions', JSON.stringify(sessions))
       logger.debug('Chat session saved to localStorage')
     } catch (error) {
       logger.error('Failed to save to localStorage:', error as Error)
@@ -221,7 +221,7 @@ class ChatStorageService {
 
   private getFromLocalStorage(): ChatSession[] {
     try {
-      const stored = localStorage.getItem('pockett_chat_sessions')
+      const stored = localStorage.getItem('fm_chat_sessions')
       if (!stored) return []
 
       const sessions = JSON.parse(stored)
@@ -244,7 +244,7 @@ class ChatStorageService {
     try {
       const sessions = this.getFromLocalStorage()
       const filtered = sessions.filter(session => session.id !== sessionId)
-      localStorage.setItem('pockett_chat_sessions', JSON.stringify(filtered))
+      localStorage.setItem('fm_chat_sessions', JSON.stringify(filtered))
       logger.debug('Chat session deleted from localStorage')
     } catch (error) {
       logger.error('Failed to delete from localStorage:', error as Error)
@@ -253,7 +253,7 @@ class ChatStorageService {
 
   private clearLocalStorage(): void {
     try {
-      localStorage.removeItem('pockett_chat_sessions')
+      localStorage.removeItem('fm_chat_sessions')
       logger.debug('All chat sessions cleared from localStorage')
     } catch (error) {
       logger.error('Failed to clear localStorage:', error as Error)

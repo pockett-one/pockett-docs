@@ -83,6 +83,7 @@ export interface UserSettingsPlus {
   preferences: UserPreferences
   projectSettings: ProjectSettings
   organizationSettings: OrganizationSettings
+  planEntitlementsByFirm: Record<string, Record<string, unknown>>
 }
 
 // ============================================================================
@@ -116,12 +117,14 @@ class UserSettingsPlusCache {
       permissions,
       preferences,
       projectSettings,
-      organizationSettings
+      organizationSettings,
+      planEntitlementsByFirm
     ] = await Promise.all([
       this.computePermissions(userId),
       this.computePreferences(userId),
       this.computeProjectSettings(userId),
-      this.computeOrganizationSettings(userId)
+      this.computeOrganizationSettings(userId),
+      this.computePlanEntitlementsByFirm(userId),
     ])
 
     return {
@@ -131,7 +134,8 @@ class UserSettingsPlusCache {
       permissions,
       preferences,
       projectSettings,
-      organizationSettings
+      organizationSettings,
+      planEntitlementsByFirm,
     }
   }
 
@@ -287,6 +291,61 @@ class UserSettingsPlusCache {
       }
     }
     return settings
+  }
+
+  private async computePlanEntitlementsByFirm(userId: string): Promise<Record<string, Record<string, unknown>>> {
+    const memberships = await prisma.firmMember.findMany({
+      where: { userId },
+      select: {
+        firmId: true,
+        firm: {
+          select: {
+            id: true,
+            anchorFirmId: true,
+            billingSharesSubscriptionFromFirmId: true,
+          },
+        },
+      },
+    })
+
+    if (memberships.length === 0) return {}
+
+    const anchorIds = Array.from(
+      new Set(
+        memberships.map((m) => m.firm.anchorFirmId ?? m.firm.billingSharesSubscriptionFromFirmId ?? m.firm.id)
+      )
+    )
+
+    const activeSubs = await prisma.subscription.findMany({
+      where: {
+        firmId: { in: anchorIds },
+        active: true,
+        deletedAt: null,
+      },
+      select: {
+        firmId: true,
+        settings: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    })
+
+    const metadataByAnchor = new Map<string, Record<string, unknown>>()
+    for (const sub of activeSubs) {
+      if (metadataByAnchor.has(sub.firmId)) continue
+      const settings = (sub.settings as Record<string, unknown> | null) ?? {}
+      const metadata = settings && typeof settings === 'object'
+        ? ((settings as Record<string, unknown>).metadata as Record<string, unknown> | undefined)
+        : undefined
+      metadataByAnchor.set(sub.firmId, metadata && typeof metadata === 'object' ? metadata : {})
+    }
+
+    const out: Record<string, Record<string, unknown>> = {}
+    for (const membership of memberships) {
+      const anchorId = membership.firm.anchorFirmId ?? membership.firm.billingSharesSubscriptionFromFirmId ?? membership.firm.id
+      out[membership.firmId] = metadataByAnchor.get(anchorId) ?? {}
+    }
+    return out
   }
 
   invalidateUser(userId: string): void {

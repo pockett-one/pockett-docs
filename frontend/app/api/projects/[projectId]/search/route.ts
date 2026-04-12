@@ -22,12 +22,12 @@ export async function GET(
         const authResult = await requireProjectView(request, projectId)
         if (authResult instanceof NextResponse) return authResult
 
-        const project = await (prisma as any).project.findUnique({
+        const project = await prisma.engagement.findUnique({
             where: { id: projectId },
             include: {
                 client: {
                     include: {
-                        organization: {
+                        firm: {
                             include: {
                                 connector: true
                             }
@@ -37,11 +37,11 @@ export async function GET(
             }
         })
 
-        if (!project || !project.client?.organization?.connector) {
+        if (!project || !project.client?.firm?.connector) {
             return NextResponse.json({ error: 'Project or active connector not found' }, { status: 404 })
         }
 
-        const connector = project.client.organization.connector
+        const connector = project.client.firm.connector
 
         // 3. Resolve Project Folders from Connector Settings and search scope
         const settings = (connector.settings as any) || {}
@@ -63,19 +63,19 @@ export async function GET(
         if (rootFolderId && projectRootFolderIds.includes(rootFolderId)) {
             parentFolderIds = [rootFolderId]
             indexedFolderIds = await SearchService.getFolderIdsUnderRoot({
-                organizationId: project.client!.organizationId,
+                organizationId: project.firmId,
                 projectId,
                 rootFolderId
             })
             idsUnderRoot = await SearchService.getExternalIdsUnderRoot({
-                organizationId: project.client!.organizationId,
+                organizationId: project.firmId,
                 projectId,
                 rootFolderId
             })
         } else {
             parentFolderIds = projectRootFolderIds
             indexedFolderIds = await SearchService.getAllProjectFolderIds({
-                organizationId: project.client!.organizationId,
+                organizationId: project.firmId,
                 projectId
             })
         }
@@ -117,21 +117,21 @@ export async function GET(
                 limit: 50
             }),
             SearchService.searchSimilarityHierarchy({
-                organizationId: project.client!.organizationId,
+                organizationId: project.firmId,
                 clientId: project.clientId,
                 projectId,
                 query: vectorQuery,
                 limit: 50
             }),
             SearchService.searchByFileName({
-                organizationId: project.client!.organizationId,
+                organizationId: project.firmId,
                 clientId: project.clientId,
                 projectId,
                 query,
                 limit: 20
             }),
             SearchService.searchByFileNameTerms({
-                organizationId: project.client!.organizationId,
+                organizationId: project.firmId,
                 clientId: project.clientId,
                 projectId,
                 terms: significantTerms.slice(0, 5),

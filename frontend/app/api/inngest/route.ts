@@ -9,6 +9,9 @@ import {
     indexBatchForSearch,
     scanAndIndexProject,
     populateSandboxSampleFiles,
+    provisionSandboxHierarchy,
+    reconcileFileDeletion,
+    reconcileFolderDeletion,
 } from "@/lib/inngest/functions";
 
 export const { GET, POST, PUT } = serve({
@@ -22,5 +25,8 @@ export const { GET, POST, PUT } = serve({
         indexBatchForSearch,
         scanAndIndexProject,
         populateSandboxSampleFiles,
+        provisionSandboxHierarchy,
+        reconcileFileDeletion,
+        reconcileFolderDeletion,
     ],
 });

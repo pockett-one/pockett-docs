@@ -77,7 +77,7 @@ export function getDeploymentVersion(): string {
 /**
  * Deployment version cookie name
  */
-export const DEPLOYMENT_VERSION_COOKIE = 'pockett-deployment-version'
+export const DEPLOYMENT_VERSION_COOKIE = 'fm-deployment-version'
 
 /**
  * Check if the session's deployment version matches current deployment

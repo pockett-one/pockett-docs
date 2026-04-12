@@ -40,6 +40,8 @@ export function MemberList({ members, invitations, personas, onRefresh, canManag
     const [actionLoading, setActionLoading] = useState<string | null>(null)
     const [editingMember, setEditingMember] = useState<any>(null)
     const [selectedPersonaId, setSelectedPersonaId] = useState<string>("")
+    const [memberIdToRemove, setMemberIdToRemove] = useState<string | null>(null)
+    const [inviteIdToRevoke, setInviteIdToRevoke] = useState<string | null>(null)
     const { addToast } = useToast()
 
     const handleOpenEdit = (member: any) => {
@@ -64,8 +66,10 @@ export function MemberList({ members, invitations, personas, onRefresh, canManag
         }
     }
 
-    const handleRemoveMember = async (id: string) => {
-        if (!confirm("Are you sure? This will remove the user's access.")) return
+    const executeRemoveMember = async () => {
+        if (!memberIdToRemove) return
+        const id = memberIdToRemove
+        setMemberIdToRemove(null)
         setActionLoading(id)
         try {
             await removeMember(id)
@@ -79,8 +83,10 @@ export function MemberList({ members, invitations, personas, onRefresh, canManag
         }
     }
 
-    const handleRevokeInvite = async (id: string) => {
-        if (!confirm("Cancel this invitation?")) return
+    const executeRevokeInvite = async () => {
+        if (!inviteIdToRevoke) return
+        const id = inviteIdToRevoke
+        setInviteIdToRevoke(null)
         setActionLoading(id)
         try {
             await revokeInvitation(id)
@@ -246,7 +252,7 @@ export function MemberList({ members, invitations, personas, onRefresh, canManag
                                                             <DropdownMenuSeparator />
                                                             <DropdownMenuItem
                                                                 className="text-red-600 focus:text-red-600"
-                                                                onClick={() => handleRemoveMember(member.id)}
+                                                                onClick={() => setMemberIdToRemove(member.id)}
                                                                 disabled={actionLoading === member.id}
                                                             >
                                                                 <Trash2 className="h-4 w-4 mr-2" />
@@ -289,7 +295,7 @@ export function MemberList({ members, invitations, personas, onRefresh, canManag
                                                         variant="ghost"
                                                         size="icon"
                                                         className="h-7 w-7 text-slate-400 hover:text-red-600 hover:bg-red-50"
-                                                        onClick={() => handleRevokeInvite(invite.id)}
+                                                        onClick={() => setInviteIdToRevoke(invite.id)}
                                                         disabled={actionLoading === invite.id}
                                                     >
                                                         <Trash2 className="h-3.5 w-3.5" />
@@ -340,7 +346,7 @@ export function MemberList({ members, invitations, personas, onRefresh, canManag
                                             <DropdownMenuContent align="end" className="min-w-[160px]">
                                                 <DropdownMenuItem onClick={() => handleOpenEdit(member)}>Change role</DropdownMenuItem>
                                                 <DropdownMenuSeparator />
-                                                <DropdownMenuItem className="text-red-600 focus:text-red-600" onClick={() => handleRemoveMember(member.id)} disabled={actionLoading === member.id}>
+                                                <DropdownMenuItem className="text-red-600 focus:text-red-600" onClick={() => setMemberIdToRemove(member.id)} disabled={actionLoading === member.id}>
                                                     <Trash2 className="h-4 w-4 mr-2" /> Remove member
                                                 </DropdownMenuItem>
                                             </DropdownMenuContent>
@@ -384,7 +390,7 @@ export function MemberList({ members, invitations, personas, onRefresh, canManag
                                         <DropdownMenuContent align="end" className="min-w-[160px]">
                                             <DropdownMenuItem onClick={() => handleOpenEdit(member)}>Change role</DropdownMenuItem>
                                             <DropdownMenuSeparator />
-                                            <DropdownMenuItem className="text-red-600 focus:text-red-600" onClick={() => handleRemoveMember(member.id)}>
+                                            <DropdownMenuItem className="text-red-600 focus:text-red-600" onClick={() => setMemberIdToRemove(member.id)}>
                                                 <Trash2 className="h-4 w-4 mr-2" /> Remove member
                                             </DropdownMenuItem>
                                         </DropdownMenuContent>
@@ -425,6 +431,44 @@ export function MemberList({ members, invitations, personas, onRefresh, canManag
                                 className="bg-slate-900 text-white hover:bg-slate-800"
                             >
                                 {actionLoading === "DIALOG_UPDATING" ? 'Updating...' : 'Update Role'}
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+
+                <Dialog open={memberIdToRemove !== null} onOpenChange={(open) => !open && setMemberIdToRemove(null)}>
+                    <DialogContent className="sm:max-w-[440px]">
+                        <DialogHeader>
+                            <DialogTitle>Remove member?</DialogTitle>
+                            <DialogDescription className="text-slate-600">
+                                This will remove the user&apos;s access to this project. This cannot be undone.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <DialogFooter className="gap-2 sm:gap-0">
+                            <Button type="button" variant="outline" onClick={() => setMemberIdToRemove(null)}>
+                                Cancel
+                            </Button>
+                            <Button type="button" variant="destructive" onClick={() => void executeRemoveMember()}>
+                                Remove member
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+
+                <Dialog open={inviteIdToRevoke !== null} onOpenChange={(open) => !open && setInviteIdToRevoke(null)}>
+                    <DialogContent className="sm:max-w-[440px]">
+                        <DialogHeader>
+                            <DialogTitle>Cancel invitation?</DialogTitle>
+                            <DialogDescription className="text-slate-600">
+                                This invitation will be revoked. You can send a new invite later if needed.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <DialogFooter className="gap-2 sm:gap-0">
+                            <Button type="button" variant="outline" onClick={() => setInviteIdToRevoke(null)}>
+                                Keep invitation
+                            </Button>
+                            <Button type="button" variant="destructive" onClick={() => void executeRevokeInvite()}>
+                                Cancel invitation
                             </Button>
                         </DialogFooter>
                     </DialogContent>

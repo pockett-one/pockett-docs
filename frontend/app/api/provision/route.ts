@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { FirmRole, MembershipType } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { config } from '@/lib/config'
 import { generateFirmSlug } from '@/lib/slug-utils'
@@ -58,16 +59,16 @@ export async function POST(request: NextRequest) {
 
         // 3. Check for existing Organization Membership
         // We look for the "Default" org first, or any org
-        const existingMembership = await (prisma as any).orgMember.findFirst({
+        const existingMembership = await prisma.firmMember.findFirst({
             where: { userId: userId },
-            include: { organization: true },
-            orderBy: { isDefault: 'desc' } // Prefer default marked orgs
+            include: { firm: true },
+            orderBy: { isDefault: 'desc' }, // Prefer default marked firms
         })
 
         if (existingMembership) {
-            logger.debug(`User ${userId} already has org: ${existingMembership.organization.slug}`)
+            logger.debug(`User ${userId} already has firm: ${existingMembership.firm.slug}`)
             return NextResponse.json({
-                slug: existingMembership.organization.slug,
+                slug: existingMembership.firm.slug,
                 type: 'existing'
             })
         }
@@ -94,32 +95,32 @@ export async function POST(request: NextRequest) {
                 ? String(allowedEmailDomain).toLowerCase().trim() || null
                 : null
 
-        const { newOrg } = await (prisma as any).$transaction(async (tx: any) => {
-            const org = await tx.organization.create({
+        const { newOrg } = await prisma.$transaction(async (tx) => {
+            const firm = await tx.firm.create({
                 data: {
                     id: newOrgId,
                     name: organizationName,
                     slug: slug,
                     allowDomainAccess: allowDomainAccess === true,
                     allowedEmailDomain: domainNormalized,
-                    settings: {}
-                }
+                    settings: {},
+                },
             })
 
-            await tx.orgMember.create({
+            await tx.firmMember.create({
                 data: {
                     userId: userId!,
-                    organizationId: org.id,
-                    role: 'org_admin',
-                    membershipType: 'internal',
-                    isDefault: true
-                }
+                    firmId: firm.id,
+                    role: FirmRole.firm_admin,
+                    membershipType: MembershipType.internal,
+                    isDefault: true,
+                },
             })
 
-            // 4c. Auto-creation of Client/Project DISABLED
-            // The org will be created but empty.
+            // 4c. Auto-creation of Client/Engagement DISABLED
+            // The firm will be created but empty.
 
-            return { newOrg: org }
+            return { newOrg: firm }
         })
 
         logger.debug(`Created new org: ${newOrg.slug} (${newOrg.id})`)
@@ -136,16 +137,16 @@ export async function POST(request: NextRequest) {
         // If another request created the default org in parallel, just fetch it.
         if (error.code === 'P2002' && userId) {
             logger.debug('Race condition detected, fetching existing default org...')
-            const existingMembership = await (prisma as any).orgMember.findFirst({
+            const existingMembership = await prisma.firmMember.findFirst({
                 where: { userId: userId },
-                include: { organization: true },
-                orderBy: { isDefault: 'desc' }
+                include: { firm: true },
+                orderBy: { isDefault: 'desc' },
             })
 
             if (existingMembership) {
                 return NextResponse.json({
-                    slug: existingMembership.organization.slug,
-                    type: 'existing'
+                    slug: existingMembership.firm.slug,
+                    type: 'existing',
                 })
             }
         }

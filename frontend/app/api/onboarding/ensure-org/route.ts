@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { FirmService } from '@/lib/firm-service'
 import { logger } from '@/lib/logger'
 import { createAdminClient } from '@/utils/supabase/admin'
+import { mergeLeanAppMetadata } from '@/lib/auth/supabase-jwt-metadata'
 
 const supabase = createClient(
   (process.env.NEXT_PUBLIC_SUPABASE_URL || "http://127.0.0.1:54321"),
@@ -45,14 +46,12 @@ export async function POST(request: NextRequest) {
       await adminClient.auth.admin.updateUserById(user.id, {
         user_metadata: {
           ...user.user_metadata,
+        },
+        app_metadata: mergeLeanAppMetadata(user.app_metadata as Record<string, unknown>, {
           active_firm_id: firm.id,
           active_firm_slug: firm.slug,
           active_persona: 'firm_admin',
-        },
-        app_metadata: {
-          active_firm_id: firm.id,
-          active_persona: 'firm_admin', // Fallback to admin if ensuring
-        }
+        }),
       })
       logger.info('JWT metadata injected during onboarding (ensure-org)', { userId: user.id, firmId: firm.id })
     } catch (jwtError) {

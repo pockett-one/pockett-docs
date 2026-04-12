@@ -150,6 +150,54 @@ export async function detectExistingStructure(
   return { detected: false }
 }
 
+/** Child folder under workspace root whose `.meta/meta.json` marks a sandbox firm (`type: firm` or sandbox `organization`). */
+export interface SandboxFirmUnderWorkspaceRoot {
+  folderId: string
+  meta: Record<string, unknown>
+  slug: string
+}
+
+function isSandboxFirmMeta(meta: Record<string, unknown> | null): meta is Record<string, unknown> & { slug: string } {
+  if (!meta || meta.sandboxOnly !== true) return false
+  const slug = meta.slug
+  if (typeof slug !== 'string' || !slug.length) return false
+  if (meta.type === 'firm') return true
+  if (meta.type === 'organization') return true
+  return false
+}
+
+/**
+ * One sandbox per workspace root: find a direct child folder whose meta is a sandbox firm.
+ * If several exist, uses the first in lexicographic folder name order and logs a warning.
+ */
+export async function findSandboxFirmUnderWorkspaceRoot(
+  adapter: IConnectorStorageAdapter,
+  connectionId: string,
+  driveRootFolderId: string
+): Promise<SandboxFirmUnderWorkspaceRoot | null> {
+  const children = await adapter.listFolderChildren(connectionId, driveRootFolderId)
+  const folders = children
+    .filter((f) => f.name !== METADATA_FOLDER_NAME && !f.name.startsWith('.'))
+    .sort((a, b) => a.name.localeCompare(b.name))
+
+  const candidates: SandboxFirmUnderWorkspaceRoot[] = []
+  for (const folder of folders) {
+    const meta = await readMetaFromFolder(adapter, connectionId, folder.id)
+    if (isSandboxFirmMeta(meta)) {
+      candidates.push({ folderId: folder.id, meta, slug: meta.slug })
+    }
+  }
+  if (candidates.length === 0) return null
+  if (candidates.length > 1) {
+    logger.warn('Multiple sandbox firm folders under workspace root; using first (sorted by folder name)', {
+      connectionId,
+      driveRootFolderId,
+      slugs: candidates.map((c) => c.slug),
+    })
+  }
+  return candidates[0]
+}
+
 export interface SetupOrgFolderResult {
   rootId: string
   orgId: string
@@ -176,9 +224,9 @@ export async function setupFirmFolder(
   })
   if (!firm) throw new Error(`Firm ${firmId} not found`)
 
-  const rootFolderId = await adapter.findOrCreateFolder(connectionId, parentFolderId, METADATA_FOLDER_NAME)
+  const metadataFolderId = await adapter.findOrCreateFolder(connectionId, parentFolderId, METADATA_FOLDER_NAME)
   await writeMetaInFolder(adapter, connectionId, parentFolderId, { type: 'root', version: 1 })
-  await restrictIfSupported(adapter, connectionId, rootFolderId, 'Restricted .pockett folder to owner-only')
+  await restrictIfSupported(adapter, connectionId, metadataFolderId, 'Restricted .pockett folder to owner-only')
 
   // Check for folder name collision and use slug as fallback
   const { folderName, collision } = await getOrgFolderName(
@@ -222,7 +270,8 @@ export async function setupFirmFolder(
     data: {
       settings: {
         ...settings,
-        rootFolderId,
+        // Workspace root is the folder that contains `.meta` / org folders — not the `.meta` folder itself.
+        rootFolderId: parentFolderId,
         parentFolderId,
         // Flat orgFolderId so getProjectFolderIds can resolve client/project folders
         // without needing a project to be created first (fixes Files tab for fresh custom orgs)
@@ -238,7 +287,7 @@ export async function setupFirmFolder(
     }
   })
 
-  return { rootId: rootFolderId, orgId: orgFolderId }
+  return { rootId: parentFolderId, orgId: orgFolderId }
 }
 
 /** @deprecated Legacy alias (Org → Firm rename) */
@@ -622,11 +671,11 @@ export async function ensureAppFolderStructure(
 
   // Update Client record with driveFolderId if we have a match
   if (org && clientFolderId) {
-    const client = await (prisma as any).client.findFirst({
+    const client = await prisma.client.findUnique({
       where: { firmId_slug: { firmId: org.id, slug: clientSlug } }
     })
     if (client) {
-      await (prisma as any).client.update({
+      await prisma.client.update({
         where: { id: client.id },
         data: {
           driveFolderId: clientFolderId,
@@ -660,16 +709,22 @@ export async function ensureAppFolderStructure(
       }
     }
 
-    // Update Project record with connectorRootFolderId
+    // Update Engagement record with connectorRootFolderId
     if (org && projectFolderId) {
-      const project = await (prisma as any).project.findFirst({
-        where: { clientId_slug: { clientId: (await prisma.client.findFirst({ where: { firmId: org.id, slug: clientSlug }, select: { id: true } }))?.id ?? '', slug: projectSlug } }
+      const clientRow = await prisma.client.findUnique({
+        where: { firmId_slug: { firmId: org.id, slug: clientSlug } },
+        select: { id: true }
       })
-      if (project) {
-        await (prisma as any).project.update({
-          where: { id: project.id },
-          data: { connectorRootFolderId: projectFolderId }
+      if (clientRow) {
+        const engagement = await prisma.engagement.findUnique({
+          where: { clientId_slug: { clientId: clientRow.id, slug: projectSlug } }
         })
+        if (engagement) {
+          await prisma.engagement.update({
+            where: { id: engagement.id },
+            data: { connectorRootFolderId: projectFolderId }
+          })
+        }
       }
     }
 

@@ -9,15 +9,64 @@ import { isValidEmail, isGoogleEmail, isPotentiallyGoogleWorkspace, generateDefa
 import { AuthService } from '@/lib/auth-service'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth-context'
-import { Mail, ArrowRight } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Check } from 'lucide-react'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from '@/components/ui/tooltip'
 import { OTPInput } from '@/components/onboarding/otp-input'
+import { KineticFloatingEmailField } from '@/components/onboarding/kinetic-floating-email-field'
+import {
+    SignupStepProgress,
+    computeSignupProgressIndex,
+    type SignupStepKey,
+} from '@/components/onboarding/signup-step-progress'
 import { Turnstile } from '@marsidev/react-turnstile'
 import { sendOTPWithTurnstile } from '@/app/actions/send-otp'
 import { sendEvent, ANALYTICS_EVENTS } from "@/lib/analytics"
 import { logger } from '@/lib/logger'
+import { persistCheckoutIntent } from '@/lib/marketing/checkout-intent'
 
-type OnboardingStep = 'info' | 'auth-method' | 'otp-verify'
+type OnboardingStep = SignupStepKey
+
+const H = '[font-family:var(--font-kinetic-headline),system-ui,sans-serif]'
+const B = '[font-family:var(--font-kinetic-body),system-ui,sans-serif]'
+const primaryCta =
+  'bg-[#72ff70] text-[#002203] hover:bg-[#72ff70] hover:brightness-95 shadow-[0_1px_0_rgba(0,34,3,0.28)] font-bold uppercase tracking-widest transition-all duration-300 hover:shadow-[0_0_20px_rgba(114,255,112,0.3)] active:scale-[0.98]'
+const inputDark =
+  'border-white/15 bg-[#141c2a]/80 text-slate-100 placeholder:text-slate-500 focus-visible:border-[#72ff70] focus-visible:ring-2 focus-visible:ring-[#72ff70]/35'
+const inputLight =
+  'rounded-lg border border-[#c6c6cc]/15 bg-white px-4 py-4 text-[#1b1b1d] placeholder:text-[#45474c]/70 focus-visible:outline-none focus-visible:border-black focus-visible:ring-1 focus-visible:ring-black/25 transition-all duration-200'
+const labelDark = 'text-slate-300'
+const labelLight =
+  `${H} block text-[10px] font-bold uppercase tracking-widest text-[#45474c]`
+
+/**
+ * Kinetic lime primary — same as `landing-page.tsx` “Build Your Portal” / `pricing` `LANDING_LIME_CTA_CARD`.
+ * Google OAuth keeps its own neutral styles.
+ */
+const kineticLimeCtaBar = `${H} group inline-flex w-full items-center justify-center gap-2 rounded border-0 bg-[#72ff70] px-6 py-3.5 text-xs font-bold uppercase tracking-[0.2em] text-[#002203] shadow-[0_1px_0_rgba(0,34,3,0.28)] transition-all duration-200 hover:bg-[#72ff70] hover:-translate-y-0.5 hover:shadow-[0_10px_24px_-12px_rgba(0,34,3,0.65)] active:translate-y-0 active:scale-95 disabled:pointer-events-none disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:shadow-[0_1px_0_rgba(0,34,3,0.28)]`
+/** Compact lime CTA — same system as hero primary, icon-only (signup email row). */
+const kineticLimeIconButton = `${H} group inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md border-0 bg-[#72ff70] text-[#002203] shadow-[0_1px_0_rgba(0,34,3,0.28)] transition-all duration-200 hover:bg-[#72ff70] hover:-translate-y-0.5 hover:shadow-[0_10px_24px_-12px_rgba(0,34,3,0.65)] active:translate-y-0 active:scale-95 disabled:pointer-events-none disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:shadow-[0_1px_0_rgba(0,34,3,0.28)]`
+/** Outline icon-only — pairs with lime on split-light rows (e.g. name step back). */
+const kineticOutlineIconButton = `${H} group inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-[#c6c6cc]/25 bg-white text-[#1b1b1d] shadow-none transition-all duration-200 hover:bg-[#f6f3f4] disabled:pointer-events-none disabled:opacity-50`
+
+/**
+ * Split-light: `flexible` keeps the ~65px-tall horizontal bar and scales width to the container
+ * (min 300px per Cloudflare). `w-full min-w-0` on parents avoids page horizontal scroll.
+ * Avoid `compact` (150×140) — it reads as a square block and adds vertical room on Slide 3.
+ */
+function turnstileOptions(isSplitLight: boolean) {
+    return isSplitLight
+        ? ({ size: 'flexible' as const, theme: 'light' as const })
+        : ({ theme: 'auto' as const })
+}
+
+/** Contain Turnstile + iframe so parents don’t gain a horizontal scrollbar (min-w-0 chain). */
+const turnstileShellClass = 'w-full min-w-0 max-w-full overflow-hidden'
 
 /**
  * Parse firstname.lastname from email if it matches the pattern.
@@ -39,11 +88,28 @@ function parseNameFromEmail(email: string): { firstName: string; lastName: strin
     }
 }
 
-export function OnboardingForm() {
+export type OnboardingFormLayout = 'stacked-dark' | 'split-light'
+
+export interface OnboardingFormProps {
+    /** `split-light`: right-column surface from docs/design/v4/signin (light form); progress lives in parent. */
+    layout?: OnboardingFormLayout
+    /** Sync step to split layout (e.g. left column hero). */
+    onStepChange?: (step: SignupStepKey) => void
+    /** 0–3 progress index for the right-column indicator (four segments: email → names → auth → OTP). */
+    onProgressIndexChange?: (index: number) => void
+}
+
+export function OnboardingForm({
+    layout = 'stacked-dark',
+    onStepChange,
+    onProgressIndexChange,
+}: OnboardingFormProps) {
     const router = useRouter()
     const searchParams = useSearchParams()
     const { user } = useAuth()
     const firstNameInputRef = useRef<HTMLInputElement>(null)
+    const emailInputRef = useRef<HTMLInputElement>(null)
+    const isSplitLight = layout === 'split-light'
 
     // Form state
     const [step, setStep] = useState<OnboardingStep>('info')
@@ -59,6 +125,22 @@ export function OnboardingForm() {
     const [showTurnstile, setShowTurnstile] = useState(false)
     const [emailVerifiedNewUser, setEmailVerifiedNewUser] = useState(false)
     const [isReturningUser, setIsReturningUser] = useState(false) // User exists, OTP already sent
+
+    useEffect(() => {
+        onStepChange?.(step)
+    }, [step, onStepChange])
+
+    useEffect(() => {
+        onProgressIndexChange?.(computeSignupProgressIndex(step, emailVerifiedNewUser))
+    }, [step, emailVerifiedNewUser, onProgressIndexChange])
+
+    useEffect(() => {
+        const intent = searchParams.get('intent')
+        const interval = searchParams.get('interval')
+        if (intent === 'standard' && (interval === 'monthly' || interval === 'annual')) {
+            persistCheckoutIntent({ plan: 'Standard', interval })
+        }
+    }, [searchParams])
 
     // Check if user is already logged in
     useEffect(() => {
@@ -114,6 +196,25 @@ export function OnboardingForm() {
         setLoading(false)
         setTurnstileToken(null)
         setShowTurnstile(false)
+    }
+
+    /** Return from name step to edit email (slide 2 → slide 1). */
+    const handleBackToEmail = () => {
+        if (searchParams.get('email')) return
+        setEmailVerifiedNewUser(false)
+        setShowTurnstile(false)
+        setTurnstileToken(null)
+        setError('')
+        setTimeout(() => emailInputRef.current?.focus(), 0)
+    }
+
+    /** Return from auth method to name step (slide 3 → slide 2). */
+    const handleBackToNames = () => {
+        setStep('info')
+        setError('')
+        setShowTurnstile(false)
+        setTurnstileToken(null)
+        setTimeout(() => firstNameInputRef.current?.focus(), 0)
     }
 
     // Step 1: Collect user info
@@ -225,7 +326,23 @@ export function OnboardingForm() {
             return
         }
 
-        // OTP verified successfully
+        // OTP verified successfully — persist display name so profile menu shows "First Last" (not email prefix).
+        const fn = firstName.trim()
+        const ln = lastName.trim()
+        if (fn && ln) {
+            const fullName = `${fn} ${ln}`
+            const { error: metaErr } = await supabase.auth.updateUser({
+                data: {
+                    first_name: fn,
+                    last_name: ln,
+                    full_name: fullName,
+                    name: fullName,
+                },
+            })
+            if (metaErr) {
+                logger.warn('Failed to persist name to auth metadata after signup', metaErr)
+            }
+        }
 
         // Clear onboarding data
         AuthService.clearOnboardingData()
@@ -243,62 +360,37 @@ export function OnboardingForm() {
         if (nextRel && nextRel.startsWith('/')) {
             router.push(nextRel)
         } else {
-            try {
-                const res = await fetch('/api/onboarding/domain-choice')
-                if (res.ok) {
-                    const data = await res.json()
-                    if (data.show) {
-                        router.push('/d/onboarding')
-                        return
-                    }
-                }
-            } catch (e) {
-                logger.error('Domain-choice check failed', e as Error)
-            }
+            // Domain join / org options are loaded on `/d/onboarding` via `/api/onboarding/domain-options`
+            // (Bearer auth). Do not call a non-existent `/api/onboarding/domain-choice` — that returned HTML
+            // and broke `res.json()` with SyntaxError.
             router.push('/d/onboarding')
         }
     }
 
+    const inputClass = isSplitLight ? inputLight : inputDark
+    const labelClass = isSplitLight ? labelLight : labelDark
+
     return (
-        <div className="w-full max-w-md mx-auto">
-            {/* Progress indicator — always visible; shows current step (1, 2, or 3) */}
-            <div className="mb-8">
-                <div className="flex items-center justify-center">
-                    {(['info', 'auth-method', 'otp-verify'] as const).map((stepKey, idx) => {
-                        const stepIndex = ['info', 'auth-method', 'otp-verify'].indexOf(step)
-                        const isCompleted = idx < stepIndex
-                        const isCurrent = idx === stepIndex
-                        const isPending = idx > stepIndex
-                        const label = ['Info', 'Auth', 'Verify'][idx]
-                        return (
-                            <div key={stepKey} className="flex items-center">
-                                <div className="flex flex-col items-center">
-                                    <div
-                                        className={`
-                                            w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold transition-all
-                                            ${isCurrent ? 'bg-slate-900 text-white ring-2 ring-slate-900 ring-offset-2' : ''}
-                                            ${isCompleted ? 'bg-slate-800 text-white' : ''}
-                                            ${isPending ? 'bg-slate-100 text-slate-400' : ''}
-                                        `}
-                                    >
-                                        {idx + 1}
-                                    </div>
-                                    <span className={`text-xs mt-1.5 font-medium ${isCurrent ? 'text-slate-900' : isCompleted ? 'text-slate-600' : 'text-slate-400'}`}>
-                                        {label}
-                                    </span>
-                                </div>
-                                {idx < 2 && (
-                                    <div className={`w-12 h-0.5 mx-2 rounded transition-colors ${isCompleted ? 'bg-slate-800' : 'bg-slate-200'}`} />
-                                )}
-                            </div>
-                        )
-                    })}
-                </div>
-            </div>
+        <div
+            className={`w-full min-w-0 overflow-x-hidden ${isSplitLight ? 'max-w-none mx-0' : 'max-w-md mx-auto'} ${B}`}
+        >
+            {!isSplitLight && (
+                <SignupStepProgress
+                    step={step}
+                    emailVerifiedNewUser={emailVerifiedNewUser}
+                    className="mb-8"
+                />
+            )}
 
             {/* Error message */}
             {error && (
-                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600 animate-in fade-in slide-in-from-top-2">
+                <div
+                    className={
+                        isSplitLight
+                            ? 'mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 animate-in fade-in slide-in-from-top-2'
+                            : 'mb-4 rounded-md border border-red-500/40 bg-red-950/40 p-3 text-sm text-red-200 animate-in fade-in slide-in-from-top-2'
+                    }
+                >
                     {error}
                 </div>
             )}
@@ -307,93 +399,281 @@ export function OnboardingForm() {
             {step === 'info' && (
                 <form onSubmit={handleInfoSubmit} className="space-y-4">
                     <div>
-                        <Label htmlFor="email" className="text-slate-700">Email</Label>
-                        <div className="flex gap-2 mt-1">
-                            <Input
-                                id="email"
-                                type="email"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter' && !emailVerifiedNewUser) {
-                                        e.preventDefault()
-                                        handleInfoSubmit(e)
+                        {!isSplitLight && (
+                            <Label htmlFor="email" className={labelClass}>
+                                Email
+                            </Label>
+                        )}
+                        {isSplitLight ? (
+                            <div className="mt-0">
+                                <KineticFloatingEmailField
+                                    ref={emailInputRef}
+                                    id="email"
+                                    value={email}
+                                    onValueChange={setEmail}
+                                    disabled={!!searchParams.get('email') || emailVerifiedNewUser}
+                                    required
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter' && !emailVerifiedNewUser) {
+                                            e.preventDefault()
+                                            void handleInfoSubmit(e as unknown as React.FormEvent<Element>)
+                                        }
+                                    }}
+                                    trailing={
+                                        !emailVerifiedNewUser ? (
+                                            <Button
+                                                type="submit"
+                                                variant="ghost"
+                                                size="icon"
+                                                disabled={loading || !email.trim()}
+                                                className={kineticLimeIconButton}
+                                                aria-label="Continue"
+                                            >
+                                                {loading ? (
+                                                    <LoadingSpinner size="sm" />
+                                                ) : (
+                                                    <ArrowRight
+                                                        className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5"
+                                                        strokeWidth={2}
+                                                    />
+                                                )}
+                                            </Button>
+                                        ) : undefined
                                     }
-                                }}
-                                placeholder="you@example.com"
-                                required
-                                disabled={!!searchParams.get('email') || emailVerifiedNewUser}
-                                className="flex-1 bg-white/50 border-slate-200 focus:border-slate-500 focus:ring-slate-500 disabled:opacity-70 disabled:cursor-not-allowed"
-                            />
-                            {!emailVerifiedNewUser && (
-                                <Button
-                                    type="submit"
-                                    size="icon"
-                                    disabled={loading || !email.trim()}
-                                    className="bg-slate-900 hover:bg-slate-800 text-white h-10 w-10 flex-shrink-0"
-                                >
-                                    {loading ? <LoadingSpinner size="sm" /> : <ArrowRight className="h-4 w-4" />}
-                                </Button>
-                            )}
-                        </div>
-                        {!emailVerifiedNewUser && (
-                            <p className="text-xs text-slate-500 mt-1.5">We&apos;ll check if you already have an account.</p>
+                                />
+                                {!emailVerifiedNewUser && (
+                                    <p className="mt-1.5 text-xs text-[#45474c]">
+                                        We&apos;ll check if you already have an account.
+                                    </p>
+                                )}
+                            </div>
+                        ) : (
+                            <>
+                                <div className="mt-1 flex gap-2">
+                                    <Input
+                                        ref={emailInputRef}
+                                        id="email"
+                                        type="email"
+                                        value={email}
+                                        onChange={(e) => setEmail(e.target.value)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter' && !emailVerifiedNewUser) {
+                                                e.preventDefault()
+                                                handleInfoSubmit(e)
+                                            }
+                                        }}
+                                        placeholder="you@example.com"
+                                        required
+                                        disabled={!!searchParams.get('email') || emailVerifiedNewUser}
+                                        className={`flex-1 ${inputClass} disabled:cursor-not-allowed disabled:opacity-60`}
+                                    />
+                                    {!emailVerifiedNewUser && (
+                                        <Button
+                                            type="submit"
+                                            variant="default"
+                                            size="icon"
+                                            disabled={loading || !email.trim()}
+                                            className={`h-10 w-10 shrink-0 rounded-md ${primaryCta} ${H}`}
+                                        >
+                                            {loading ? (
+                                                <LoadingSpinner size="sm" />
+                                            ) : (
+                                                <ArrowRight className="h-4 w-4" />
+                                            )}
+                                        </Button>
+                                    )}
+                                </div>
+                                {!emailVerifiedNewUser && (
+                                    <p className="mt-1.5 text-xs text-slate-500">
+                                        We&apos;ll check if you already have an account.
+                                    </p>
+                                )}
+                            </>
                         )}
                         
                         {/* Turnstile - shown after email submitted, before check */}
                         {showTurnstile && step === 'info' && !emailVerifiedNewUser && (
-                            <div className="flex justify-center mt-4">
-                                <Turnstile
-                                    siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || '1x00000000000000000000AA'}
-                                    onSuccess={(token) => {
-                                        setTurnstileToken(token)
-                                        // Auto-trigger email check after Turnstile success
-                                        handleEmailCheckWithOTP(token)
-                                    }}
-                                    onError={() => {
-                                        setError('Captcha verification failed. Please try again.')
-                                        setTurnstileToken(null)
-                                        setShowTurnstile(false)
-                                    }}
-                                    onExpire={() => {
-                                        setTurnstileToken(null)
-                                        setShowTurnstile(false)
-                                    }}
-                                />
+                            <div className={`mt-4 ${turnstileShellClass}`}>
+                                <div
+                                    className={
+                                        isSplitLight
+                                            ? 'w-full min-w-0'
+                                            : 'flex w-full min-w-0 justify-center'
+                                    }
+                                >
+                                    <Turnstile
+                                        className={isSplitLight ? 'min-w-0 w-full' : 'min-w-0'}
+                                        siteKey={
+                                            process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ||
+                                            '1x00000000000000000000AA'
+                                        }
+                                        options={turnstileOptions(isSplitLight)}
+                                        onSuccess={(token) => {
+                                            setTurnstileToken(token)
+                                            // Auto-trigger email check after Turnstile success
+                                            handleEmailCheckWithOTP(token)
+                                        }}
+                                        onError={() => {
+                                            setError('Captcha verification failed. Please try again.')
+                                            setTurnstileToken(null)
+                                            setShowTurnstile(false)
+                                        }}
+                                        onExpire={() => {
+                                            setTurnstileToken(null)
+                                            setShowTurnstile(false)
+                                        }}
+                                    />
+                                </div>
                             </div>
                         )}
                     </div>
-                    {emailVerifiedNewUser && (
-                        <div className="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-bottom-2 duration-200">
-                            <div>
-                                <Label htmlFor="firstName" className="text-slate-700">First Name</Label>
-                                <Input
-                                    ref={firstNameInputRef}
-                                    id="firstName"
-                                    value={firstName}
-                                    onChange={(e) => setFirstName(e.target.value)}
-                                    placeholder="John"
-                                    required
-                                    className="bg-white/50 border-slate-200 focus:border-slate-500 focus:ring-slate-500"
-                                />
+                    {emailVerifiedNewUser && isSplitLight && (
+                        <TooltipProvider delayDuration={300}>
+                            <div className="animate-in fade-in slide-in-from-bottom-2 duration-200">
+                                {/* Match input row: [back w-10] [first] [last] [next w-10] so label columns == input width */}
+                                <div className="flex gap-2">
+                                    {!searchParams.get('email') && (
+                                        <div className="w-10 shrink-0" aria-hidden />
+                                    )}
+                                    <div className="min-w-0 flex-1 text-center">
+                                        <Label htmlFor="firstName" className={`${labelClass} inline-block`}>
+                                            First Name
+                                        </Label>
+                                    </div>
+                                    <div className="min-w-0 flex-1 text-center">
+                                        <Label htmlFor="lastName" className={`${labelClass} inline-block`}>
+                                            Last Name
+                                        </Label>
+                                    </div>
+                                    <div className="w-10 shrink-0" aria-hidden />
+                                </div>
+                                <div className="mt-1.5 flex min-w-0 items-center gap-2">
+                                    {!searchParams.get('email') && (
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    onClick={handleBackToEmail}
+                                                    className={kineticOutlineIconButton}
+                                                    aria-label="Edit email"
+                                                >
+                                                    <ArrowLeft
+                                                        className="h-4 w-4 transition-transform duration-200 group-hover:-translate-x-0.5"
+                                                        strokeWidth={2}
+                                                    />
+                                                </Button>
+                                            </TooltipTrigger>
+                                            <TooltipContent variant="light" side="top">
+                                                Edit email
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    )}
+                                    <Input
+                                        ref={firstNameInputRef}
+                                        id="firstName"
+                                        value={firstName}
+                                        onChange={(e) => setFirstName(e.target.value)}
+                                        placeholder="John"
+                                        required
+                                        className={`min-w-0 flex-1 ${inputClass}`}
+                                    />
+                                    <Input
+                                        id="lastName"
+                                        value={lastName}
+                                        onChange={(e) => setLastName(e.target.value)}
+                                        placeholder="Doe"
+                                        required
+                                        className={`min-w-0 flex-1 ${inputClass}`}
+                                    />
+                                    <Button
+                                        type="submit"
+                                        variant="ghost"
+                                        size="icon"
+                                        disabled={
+                                            loading || !firstName?.trim() || !lastName?.trim()
+                                        }
+                                        className={kineticLimeIconButton}
+                                        aria-label="Continue"
+                                    >
+                                        {loading ? (
+                                            <LoadingSpinner size="sm" />
+                                        ) : (
+                                            <ArrowRight
+                                                className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5"
+                                                strokeWidth={2}
+                                            />
+                                        )}
+                                    </Button>
+                                </div>
                             </div>
-                            <div>
-                                <Label htmlFor="lastName" className="text-slate-700">Last Name</Label>
-                                <Input
-                                    id="lastName"
-                                    value={lastName}
-                                    onChange={(e) => setLastName(e.target.value)}
-                                    placeholder="Doe"
-                                    required
-                                    className="bg-white/50 border-slate-200 focus:border-slate-500 focus:ring-slate-500"
-                                />
-                            </div>
-                        </div>
+                        </TooltipProvider>
                     )}
-                    {emailVerifiedNewUser && (
-                        <Button type="submit" className="w-full bg-slate-900 hover:bg-slate-800 text-white transition-all" disabled={loading}>
-                            {loading ? <LoadingSpinner size="sm" /> : <><span>Continue</span><ArrowRight className="ml-2 h-4 w-4" /></>}
-                        </Button>
+                    {emailVerifiedNewUser && !isSplitLight && (
+                        <>
+                            <div className="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-bottom-2 duration-200">
+                                <div>
+                                    <Label htmlFor="firstName" className={labelClass}>
+                                        First Name
+                                    </Label>
+                                    <Input
+                                        ref={firstNameInputRef}
+                                        id="firstName"
+                                        value={firstName}
+                                        onChange={(e) => setFirstName(e.target.value)}
+                                        placeholder="John"
+                                        required
+                                        className={inputClass}
+                                    />
+                                </div>
+                                <div>
+                                    <Label htmlFor="lastName" className={labelClass}>
+                                        Last Name
+                                    </Label>
+                                    <Input
+                                        id="lastName"
+                                        value={lastName}
+                                        onChange={(e) => setLastName(e.target.value)}
+                                        placeholder="Doe"
+                                        required
+                                        className={inputClass}
+                                    />
+                                </div>
+                            </div>
+                            <div className="flex gap-3">
+                                {!searchParams.get('email') && (
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={handleBackToEmail}
+                                        className={`flex-1 inline-flex items-center justify-center gap-2 rounded-md border border-white/20 bg-transparent py-5 text-[15px] font-bold uppercase tracking-widest text-slate-200 shadow-none transition-all hover:bg-white/5 ${H}`}
+                                    >
+                                        <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden />
+                                        Back
+                                    </Button>
+                                )}
+                                <Button
+                                    type="submit"
+                                    variant="default"
+                                    disabled={
+                                        loading || !firstName?.trim() || !lastName?.trim()
+                                    }
+                                    className={`inline-flex items-center justify-center gap-2 py-5 text-[15px] transition-all ${primaryCta} ${H} rounded-md ${
+                                        searchParams.get('email') ? 'w-full' : 'flex-1'
+                                    }`}
+                                >
+                                    {loading ? (
+                                        <LoadingSpinner size="sm" />
+                                    ) : (
+                                        <>
+                                            Next
+                                            <ArrowRight className="h-4 w-4 shrink-0" aria-hidden />
+                                        </>
+                                    )}
+                                </Button>
+                            </div>
+                        </>
                     )}
                 </form>
             )}
@@ -401,48 +681,116 @@ export function OnboardingForm() {
             {/* Step 2: Auth Method Selection */}
             {step === 'auth-method' && (
                 <div className="space-y-6">
-                    <div className="text-center">
-                        <h2 className="text-xl font-semibold text-slate-900 mb-2">Choose authentication method</h2>
-                        <p className="text-sm text-slate-600">
+                    <div className={isSplitLight ? 'text-left' : 'text-center'}>
+                        <h2
+                            className={`mb-2 text-xl font-bold tracking-tight ${H} ${
+                                isSplitLight ? 'text-[#1b1b1d]' : 'text-white'
+                            }`}
+                        >
+                            Choose authentication method
+                        </h2>
+                        <p className={`text-sm ${isSplitLight ? 'text-[#45474c]' : 'text-slate-400'}`}>
                             How would you like to sign in?
                         </p>
                     </div>
 
                     {/* Error shown once by the global error block above */}
 
-                    {/* Email OTP - Primary action, always available */}
+                    {/* Email OTP — Back / Next */}
                     <div className="space-y-4">
-                        <Button
-                            onClick={handleSendOTP}
-                            disabled={loading || (showTurnstile && !turnstileToken)}
-                            className="w-full bg-slate-900 hover:bg-slate-800 text-white"
+                        <div
+                            className={
+                                isSplitLight
+                                    ? 'flex w-full min-w-0 items-stretch gap-2'
+                                    : 'flex gap-3'
+                            }
                         >
-                            {loading ? (
-                                <LoadingSpinner size="sm" />
-                            ) : (
-                                <Mail className="mr-2 h-4 w-4" />
-                            )}
-                            Continue with Email Code
-                        </Button>
+                            <Button
+                                type="button"
+                                variant={isSplitLight ? 'ghost' : 'outline'}
+                                size={isSplitLight ? 'icon' : undefined}
+                                onClick={handleBackToNames}
+                                disabled={loading}
+                                className={
+                                    isSplitLight
+                                        ? `${kineticOutlineIconButton} shrink-0`
+                                        : `flex-1 inline-flex items-center justify-center gap-2 rounded-md border border-white/20 bg-transparent py-5 text-[15px] font-bold uppercase tracking-widest text-slate-200 shadow-none transition-all hover:bg-white/5 ${H}`
+                                }
+                            >
+                                {isSplitLight ? (
+                                    <ArrowLeft
+                                        className="h-4 w-4 transition-transform duration-200 group-hover:-translate-x-0.5"
+                                        strokeWidth={2}
+                                    />
+                                ) : (
+                                    <>
+                                        <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden />
+                                        Back
+                                    </>
+                                )}
+                            </Button>
+                            <Button
+                                type="button"
+                                variant={isSplitLight ? 'ghost' : 'default'}
+                                onClick={handleSendOTP}
+                                disabled={loading || (showTurnstile && !turnstileToken)}
+                                className={
+                                    isSplitLight
+                                        ? `${kineticLimeCtaBar} min-w-0 flex-1 !w-auto`
+                                        : `inline-flex flex-1 items-center justify-center gap-2 py-5 text-[15px] ${primaryCta} ${H} rounded-md`
+                                }
+                            >
+                                {loading ? (
+                                    <LoadingSpinner size="sm" />
+                                ) : isSplitLight ? (
+                                    <>
+                                        Send Email Code
+                                        <ArrowRight
+                                            className="h-5 w-5 shrink-0 transition-transform duration-200 group-hover:translate-x-0.5"
+                                            strokeWidth={2}
+                                            aria-hidden
+                                        />
+                                    </>
+                                ) : (
+                                    <>
+                                        Next
+                                        <ArrowRight className="h-4 w-4 shrink-0" aria-hidden />
+                                    </>
+                                )}
+                            </Button>
+                        </div>
 
                         {/* Turnstile - Only shown when email OTP is clicked */}
                         {showTurnstile && (
-                            <div className="flex justify-center">
-                                <Turnstile
-                                    siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || '1x00000000000000000000AA'}
-                                    onSuccess={(token) => {
-                                        setTurnstileToken(token)
-                                        setError('')
-                                        sendOTPWithToken(token)
-                                    }}
-                                    onError={() => {
-                                        setError('Captcha verification failed. Please try again.')
-                                        setTurnstileToken(null)
-                                    }}
-                                    onExpire={() => {
-                                        setTurnstileToken(null)
-                                    }}
-                                />
+                            <div className={turnstileShellClass}>
+                                <div
+                                    className={
+                                        isSplitLight
+                                            ? 'w-full min-w-0'
+                                            : 'flex w-full min-w-0 justify-center'
+                                    }
+                                >
+                                    <Turnstile
+                                        className={isSplitLight ? 'min-w-0 w-full' : 'min-w-0'}
+                                        siteKey={
+                                            process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ||
+                                            '1x00000000000000000000AA'
+                                        }
+                                        options={turnstileOptions(isSplitLight)}
+                                        onSuccess={(token) => {
+                                            setTurnstileToken(token)
+                                            setError('')
+                                            sendOTPWithToken(token)
+                                        }}
+                                        onError={() => {
+                                            setError('Captcha verification failed. Please try again.')
+                                            setTurnstileToken(null)
+                                        }}
+                                        onExpire={() => {
+                                            setTurnstileToken(null)
+                                        }}
+                                    />
+                                </div>
                             </div>
                         )}
                     </div>
@@ -451,10 +799,14 @@ export function OnboardingForm() {
                     {(isGoogleEmail(email) || isPotentiallyGoogleWorkspace(email)) && (
                         <div className="relative">
                             <div className="absolute inset-0 flex items-center">
-                                <div className="w-full border-t border-slate-200" />
+                                <div
+                                    className={`w-full border-t ${isSplitLight ? 'border-[#eae7e9]' : 'border-white/10'}`}
+                                />
                             </div>
                             <div className="relative flex justify-center text-xs uppercase">
-                                <span className="bg-white px-2 text-slate-500">or</span>
+                                <span className={`px-2 ${isSplitLight ? 'bg-[#fcf8fa] text-[#45474c]' : 'bg-[#141c2a] text-slate-500'}`}>
+                                    or
+                                </span>
                             </div>
                         </div>
                     )}
@@ -465,7 +817,11 @@ export function OnboardingForm() {
                             onClick={handleGoogleSignIn}
                             disabled={loading}
                             variant="outline"
-                            className="w-full bg-white border-2 border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300 hover:text-slate-900 transition-all"
+                            className={
+                                isSplitLight
+                                    ? `w-full rounded border border-[#c6c6cc]/10 bg-[#f6f3f4] py-4 text-xs font-bold uppercase tracking-wider text-[#1b1b1d] hover:bg-[#f0edee] ${H}`
+                                    : `w-full rounded-md border border-white/15 bg-[#141c2a]/60 py-5 text-[15px] text-slate-200 hover:bg-[#141c2a] hover:text-white ${H}`
+                            }
                         >
                             {loading ? (
                                 <LoadingSpinner size="sm" />
@@ -486,19 +842,41 @@ export function OnboardingForm() {
             {/* Step 3: OTP Verification */}
             {step === 'otp-verify' && (
                 <div className="space-y-6">
-                    <div className="text-center">
+                    <div className={isSplitLight ? 'text-left' : 'text-center'}>
                         {isReturningUser ? (
                             <>
-                                <h2 className="text-xl font-semibold text-slate-900 mb-2">Welcome back!</h2>
-                                <p className="text-sm text-slate-600">
-                                    We found your account. Enter the code sent to <strong>{email}</strong>
+                                <h2
+                                    className={`mb-2 text-xl font-bold tracking-tight ${H} ${
+                                        isSplitLight ? 'text-[#1b1b1d]' : 'text-white'
+                                    }`}
+                                >
+                                    Welcome back!
+                                </h2>
+                                <p className={`text-sm ${isSplitLight ? 'text-[#45474c]' : 'text-slate-400'}`}>
+                                    We found your account. Enter the code sent to{' '}
+                                    <strong
+                                        className={`font-medium ${isSplitLight ? 'text-[#1b1b1d]' : 'text-slate-200'}`}
+                                    >
+                                        {email}
+                                    </strong>
                                 </p>
                             </>
                         ) : (
                             <>
-                                <h2 className="text-xl font-semibold text-slate-900 mb-2">Check your email</h2>
-                                <p className="text-sm text-slate-600">
-                                    We sent a 6-digit code to <strong>{email}</strong>
+                                <h2
+                                    className={`mb-2 text-xl font-bold tracking-tight ${H} ${
+                                        isSplitLight ? 'text-[#1b1b1d]' : 'text-white'
+                                    }`}
+                                >
+                                    Check your email
+                                </h2>
+                                <p className={`text-sm ${isSplitLight ? 'text-[#45474c]' : 'text-slate-400'}`}>
+                                    We sent a 6-digit code to{' '}
+                                    <strong
+                                        className={`font-medium ${isSplitLight ? 'text-[#1b1b1d]' : 'text-slate-200'}`}
+                                    >
+                                        {email}
+                                    </strong>
                                 </p>
                             </>
                         )}
@@ -510,53 +888,84 @@ export function OnboardingForm() {
                         onComplete={(code) => handleVerifyOTP(code)}
                         disabled={loading}
                         loading={loading}
+                        variant={isSplitLight ? 'light' : 'dark'}
+                        slotsJustify={isSplitLight ? 'start' : 'center'}
                     />
 
                     <Button
+                        variant={isSplitLight ? 'ghost' : 'default'}
                         onClick={() => handleVerifyOTP()}
                         disabled={loading || otpCode.length !== 6}
-                        className="w-full bg-slate-900 hover:bg-slate-800 text-white transition-all"
+                        className={
+                            isSplitLight
+                                ? kineticLimeCtaBar
+                                : `w-full py-5 text-[15px] transition-all ${primaryCta} ${H} rounded-md`
+                        }
                     >
                         {loading ? (
-                            <>
+                            isSplitLight ? (
                                 <LoadingSpinner size="sm" />
-                                Verifying...
-                            </>
+                            ) : (
+                                <>
+                                    <LoadingSpinner size="sm" />
+                                    Verifying...
+                                </>
+                            )
                         ) : (
-                            'Verify Code'
+                            <>
+                                <Check className="h-5 w-5 shrink-0" strokeWidth={2} />
+                                Verify Code
+                            </>
                         )}
                     </Button>
 
-                    <div className="text-center space-y-4">
+                    <div className={`space-y-4 ${isSplitLight ? 'text-left' : 'text-center'}`}>
                         <button
                             onClick={() => {
                                 setTurnstileToken(null)
                                 setShowTurnstile(true)
                             }}
                             disabled={loading}
-                            className="text-sm text-slate-600 hover:text-slate-800 font-medium hover:underline"
+                            className={`text-sm font-medium transition-colors hover:underline ${
+                                isSplitLight
+                                    ? 'text-[#45474c] hover:text-[#006e16]'
+                                    : 'text-slate-400 hover:text-[#72ff70]'
+                            }`}
                         >
                             Resend code
                         </button>
 
                         {/* Turnstile for resend */}
                         {showTurnstile && step === 'otp-verify' && (
-                            <div className="flex justify-center">
-                                <Turnstile
-                                    siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || '1x00000000000000000000AA'}
-                                    onSuccess={(token) => {
-                                        setTurnstileToken(token)
-                                        // Auto-trigger resend after Turnstile success
-                                        handleSendOTP()
-                                    }}
-                                    onError={() => {
-                                        setError('Captcha verification failed. Please try again.')
-                                        setTurnstileToken(null)
-                                    }}
-                                    onExpire={() => {
-                                        setTurnstileToken(null)
-                                    }}
-                                />
+                            <div className={turnstileShellClass}>
+                                <div
+                                    className={
+                                        isSplitLight
+                                            ? 'w-full min-w-0'
+                                            : 'flex w-full min-w-0 justify-center'
+                                    }
+                                >
+                                    <Turnstile
+                                        className={isSplitLight ? 'min-w-0 w-full' : 'min-w-0'}
+                                        siteKey={
+                                            process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ||
+                                            '1x00000000000000000000AA'
+                                        }
+                                        options={turnstileOptions(isSplitLight)}
+                                        onSuccess={(token) => {
+                                            setTurnstileToken(token)
+                                            // Auto-trigger resend after Turnstile success
+                                            handleSendOTP()
+                                        }}
+                                        onError={() => {
+                                            setError('Captcha verification failed. Please try again.')
+                                            setTurnstileToken(null)
+                                        }}
+                                        onExpire={() => {
+                                            setTurnstileToken(null)
+                                        }}
+                                    />
+                                </div>
                             </div>
                         )}
                     </div>

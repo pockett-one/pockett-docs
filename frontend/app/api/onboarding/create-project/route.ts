@@ -5,7 +5,7 @@ import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { projectService } from '@/lib/services/project.service'
 import { invalidateUserSettingsPlus } from '@/lib/actions/user-settings'
 import { googleDriveConnector } from '@/lib/google-drive-connector'
-import { SampleFileService, DEFAULT_SAMPLE_FILES, SANDBOX_PROJECT_DATA } from '@/lib/services/sample-file-service-server'
+import { SampleFileService, DEFAULT_SAMPLE_FILES, SANDBOX_ENGAGEMENT_FOLDER_DATA } from '@/lib/services/sample-file-service-server'
 import { createGoogleDriveAdapter } from '@/lib/connectors/adapters/google-drive-adapter'
 import { safeInngestSend } from '@/lib/inngest/client'
 
@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
                             .filter(({ subId }) => !!subId)
                             .map(async ({ subName, subId }) => {
                                 try {
-                                    const structure = SANDBOX_PROJECT_DATA[name]?.[subName]
+                                    const structure = SANDBOX_ENGAGEMENT_FOLDER_DATA[name]?.[subName]
                                     if (structure) {
                                         await SampleFileService.createFolderStructure(adapter, connectionId, subId!, structure)
                                     } else if (DEFAULT_SAMPLE_FILES[subName]) {

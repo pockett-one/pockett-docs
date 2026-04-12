@@ -14,6 +14,14 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { formatFullDate } from '@/lib/utils'
 import { useToast } from '@/components/ui/toast'
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog'
 import { logger } from '@/lib/logger'
 
 interface ClientMembersTabProps {
@@ -43,6 +51,7 @@ export function ClientMembersTab({ firmId, clientId, orgSlug, clientSlug, canMan
     const [isLoading, setIsLoading] = useState(true)
     const [isInviteModalOpen, setIsInviteModalOpen] = useState(false)
     const [actionLoading, setActionLoading] = useState<string | null>(null)
+    const [inviteToRevokeId, setInviteToRevokeId] = useState<string | null>(null)
     const { addToast } = useToast()
 
     const refreshData = async () => {
@@ -75,8 +84,10 @@ export function ClientMembersTab({ firmId, clientId, orgSlug, clientSlug, canMan
         }
     }
 
-    const handleRevokeInvite = async (id: string) => {
-        if (!confirm('Cancel this invitation?')) return
+    const executeRevokeInvite = async () => {
+        if (!inviteToRevokeId) return
+        const id = inviteToRevokeId
+        setInviteToRevokeId(null)
         setActionLoading(id)
         try {
             await revokeClientInvitation(id)
@@ -185,7 +196,7 @@ export function ClientMembersTab({ firmId, clientId, orgSlug, clientSlug, canMan
                                                 </DropdownMenuItem>
                                                 <DropdownMenuItem
                                                     className="text-red-600 focus:text-red-600"
-                                                    onClick={() => handleRevokeInvite(inv.id)}
+                                                    onClick={() => setInviteToRevokeId(inv.id)}
                                                     disabled={actionLoading === inv.id}
                                                 >
                                                     <Trash2 className="h-4 w-4 mr-2" />
@@ -213,6 +224,25 @@ export function ClientMembersTab({ firmId, clientId, orgSlug, clientSlug, canMan
                 onOpenChange={setIsInviteModalOpen}
                 onSuccess={refreshData}
             />
+
+            <Dialog open={inviteToRevokeId !== null} onOpenChange={(open) => !open && setInviteToRevokeId(null)}>
+                <DialogContent className="sm:max-w-[440px]">
+                    <DialogHeader>
+                        <DialogTitle>Cancel invitation?</DialogTitle>
+                        <DialogDescription className="text-slate-600">
+                            This invitation will be revoked. You can send a new invite later if needed.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter className="gap-2 sm:gap-0">
+                        <Button type="button" variant="outline" onClick={() => setInviteToRevokeId(null)}>
+                            Keep invitation
+                        </Button>
+                        <Button type="button" variant="destructive" onClick={() => void executeRevokeInvite()}>
+                            Cancel invitation
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }

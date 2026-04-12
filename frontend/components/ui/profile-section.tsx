@@ -2,7 +2,8 @@
 
 import { useState, useRef, useLayoutEffect, useEffect } from "react"
 import { createPortal } from "react-dom"
-import { LogOut, ChevronDown, Building2 } from "lucide-react"
+import Link from "next/link"
+import { LogOut, ChevronDown, ChevronUp, Building2, CreditCard, UserCircle } from "lucide-react"
 import { ProfileBubble, ProfileBubblePopupContent } from "@/components/ui/profile-bubble-popup"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 
@@ -18,9 +19,27 @@ interface ProfileSectionProps {
   } | null
   signOut: () => void
   isCollapsed?: boolean
+  /** Firm scope `can_manage` (e.g. Firm Administrator). When false, Billing is hidden. */
+  showBillingLink?: boolean
+  /** Link to workspace billing (plans, checkout, Polar portal). Defaults to `/d/billing` with safe returnTo. */
+  billingHref?: string
+  /**
+   * When set (including `null`), replaces the email line under the user name with plan / workspace billing info.
+   * Omit entirely (e.g. onboarding) to keep showing the email.
+   */
+  planSubtitle?: string | null
+  planSubtitleLoading?: boolean
 }
 
-export function ProfileSection({ user, signOut, isCollapsed = false }: ProfileSectionProps) {
+export function ProfileSection({
+  user,
+  signOut,
+  isCollapsed = false,
+  showBillingLink = false,
+  billingHref = '/d/billing?returnTo=%2Fd%2Fprofile',
+  planSubtitle,
+  planSubtitleLoading = false,
+}: ProfileSectionProps) {
   const [isProfileOpen, setIsProfileOpen] = useState(false)
   const profileRef = useRef<HTMLDivElement>(null)
   const [popupPosition, setPopupPosition] = useState<{ top: number; left: number; width?: number } | null>(null)
@@ -33,6 +52,12 @@ export function ProfileSection({ user, signOut, isCollapsed = false }: ProfileSe
   }
 
   const getUserEmail = () => user?.email || 'user@example.com'
+
+  const secondaryLine = () => {
+    if (planSubtitleLoading) return 'Loading…'
+    if (planSubtitle !== undefined) return planSubtitle || '—'
+    return getUserEmail()
+  }
 
   const updatePopupPosition = () => {
     if (!profileRef.current) return
@@ -90,6 +115,10 @@ export function ProfileSection({ user, signOut, isCollapsed = false }: ProfileSe
           <Tooltip>
             <TooltipTrigger asChild>
               <button
+                type="button"
+                data-checkout-hint-profile="trigger"
+                aria-expanded={isProfileOpen}
+                aria-haspopup="menu"
                 onClick={() => setIsProfileOpen(!isProfileOpen)}
                 className="flex w-full min-w-0 max-w-full items-center justify-center rounded-lg px-0 py-2 text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900"
               >
@@ -102,11 +131,15 @@ export function ProfileSection({ user, signOut, isCollapsed = false }: ProfileSe
             </TooltipTrigger>
             <TooltipContent side="right" sideOffset={8}>
               <p className="font-medium text-slate-900">{getUserDisplayName()}</p>
-              <p className="text-xs text-slate-500">{getUserEmail()}</p>
+              <p className="text-xs text-slate-500">{secondaryLine()}</p>
             </TooltipContent>
           </Tooltip>
         ) : (
           <button
+            type="button"
+            data-checkout-hint-profile="trigger"
+            aria-expanded={isProfileOpen}
+            aria-haspopup="menu"
             onClick={() => setIsProfileOpen(!isProfileOpen)}
             className="flex items-center gap-2 w-full px-2 py-1.5 rounded-lg hover:bg-slate-50 transition-colors text-left"
           >
@@ -119,11 +152,15 @@ export function ProfileSection({ user, signOut, isCollapsed = false }: ProfileSe
               <p className="text-sm font-semibold text-slate-900 truncate">
                 {getUserDisplayName()}
               </p>
-              <p className="text-xs text-slate-500 truncate">
-                {getUserEmail()}
+              <p className="text-xs text-slate-500 truncate" title={secondaryLine()}>
+                {secondaryLine()}
               </p>
             </div>
-            <ChevronDown className="h-4 w-4 text-slate-400 shrink-0" />
+            {isProfileOpen ? (
+              <ChevronDown className="h-4 w-4 text-slate-400 shrink-0" aria-hidden />
+            ) : (
+              <ChevronUp className="h-4 w-4 text-slate-400 shrink-0" aria-hidden />
+            )}
           </button>
         )}
 
@@ -131,7 +168,7 @@ export function ProfileSection({ user, signOut, isCollapsed = false }: ProfileSe
         {isProfileOpen && popupPosition && typeof document !== 'undefined' && createPortal(
           <div
             data-profile-popup=""
-            className="fixed bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200 z-[200]"
+            className="d-app fixed bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200 z-[200]"
             style={{
               top: popupPosition.top,
               left: popupPosition.left,
@@ -143,23 +180,49 @@ export function ProfileSection({ user, signOut, isCollapsed = false }: ProfileSe
             <ProfileBubblePopupContent
               name={getUserDisplayName()}
               email={getUserEmail()}
+              menuPlanLine={
+                planSubtitle !== undefined
+                  ? planSubtitleLoading
+                    ? 'Loading…'
+                    : planSubtitle || '—'
+                  : undefined
+              }
+              bubbleSize={isCollapsed ? 'default' : 'lg'}
               avatarUrl={(user?.user_metadata?.avatar_url as string | null | undefined) ?? ((user?.user_metadata as Record<string, unknown>)?.picture as string | null | undefined) ?? null}
               footer={
-                <div className="mt-2 pt-2 border-t border-slate-100 space-y-1">
-                  <button
-                    type="button"
-                    onClick={() => window.location.href = '/d'}
-                    className="flex items-center gap-2 w-full px-2 py-1.5 text-xs text-slate-600 hover:bg-slate-100 rounded-md transition-colors"
+                <div className="space-y-0.5">
+                  <Link
+                    href="/d/profile"
+                    onClick={() => setIsProfileOpen(false)}
+                    className="d-sidebar-nav flex w-full items-center gap-2 rounded-lg px-3 py-2 text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900"
                   >
-                    <Building2 className="h-4 w-4" />
+                    <UserCircle className="h-4 w-4 shrink-0" />
+                    Profile
+                  </Link>
+                  {showBillingLink && (
+                    <Link
+                      href={billingHref}
+                      onClick={() => setIsProfileOpen(false)}
+                      className="d-sidebar-nav flex w-full items-center gap-2 rounded-lg px-3 py-2 text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900"
+                    >
+                      <CreditCard className="h-4 w-4 shrink-0" />
+                      Billing
+                    </Link>
+                  )}
+                  <Link
+                    href="/d"
+                    onClick={() => setIsProfileOpen(false)}
+                    className="d-sidebar-nav flex w-full items-center gap-2 rounded-lg px-3 py-2 text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900"
+                  >
+                    <Building2 className="h-4 w-4 shrink-0" aria-hidden />
                     Switch Workspace
-                  </button>
+                  </Link>
                   <button
                     type="button"
                     onClick={() => signOut()}
-                    className="flex items-center gap-2 w-full px-2 py-1.5 text-xs text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                    className="d-sidebar-nav flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-red-600 transition-colors hover:bg-slate-50 hover:text-red-700"
                   >
-                    <LogOut className="h-4 w-4" />
+                    <LogOut className="h-4 w-4 shrink-0" />
                     Sign Out
                   </button>
                 </div>

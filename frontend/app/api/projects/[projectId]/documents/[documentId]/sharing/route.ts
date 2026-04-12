@@ -28,9 +28,9 @@ async function ensureDocument(
   externalId: string,
   title: string
 ): Promise<{ organizationId: string, externalId: string }> {
-  const project = await (prisma as any).project.findFirst({
+  const project = await prisma.engagement.findFirst({
     where: { id: projectId, isDeleted: false },
-    select: { organizationId: true, clientId: true },
+    select: { firmId: true, clientId: true },
   })
   if (!project) throw new Error('Project not found')
 
@@ -38,9 +38,9 @@ async function ensureDocument(
 
   await (prisma as any).$executeRawUnsafe(
     `INSERT INTO platform.engagement_documents
-       ("firmId", "clientId", "projectId", "externalId", "fileName", "updatedAt")
+       ("firmId", "clientId", "engagementId", "externalId", "fileName", "updatedAt")
      VALUES ($1::uuid, $2::uuid, $3::uuid, $4, $5, NOW())
-     ON CONFLICT ("projectId", "firmId", "externalId") DO NOTHING`,
+     ON CONFLICT ("engagementId", "firmId", "externalId") DO NOTHING`,
     firmId,
     clientId || null,
     projectId,
@@ -75,11 +75,11 @@ export async function GET(
     const fileInfo = await getFileInfo(projectId, documentIdParam)
     if (!fileInfo) return NextResponse.json({ sharing: null })
 
-    const doc = await (prisma as any).projectDocument.findUnique({
+    const doc = await prisma.engagementDocument.findUnique({
       where: {
-        projectId_organizationId_externalId: {
-          projectId,
-          organizationId: fileInfo.organizationId,
+        engagementId_firmId_externalId: {
+          engagementId: projectId,
+          firmId: fileInfo.organizationId,
           externalId: fileInfo.externalId,
         },
       },
@@ -137,11 +137,11 @@ export async function PUT(
       publish: body.guestOptions?.publish === true,
     }
 
-    const existing = await (prisma as any).projectDocument.findUnique({
+    const existing = await prisma.engagementDocument.findUnique({
       where: {
-        projectId_organizationId_externalId: {
-          projectId,
-          organizationId: fileInfo.organizationId,
+        engagementId_firmId_externalId: {
+          engagementId: projectId,
+          firmId: fileInfo.organizationId,
           externalId: fileInfo.externalId,
         },
       },
@@ -149,7 +149,7 @@ export async function PUT(
 
     if (!externalCollaborator && !guest) {
       if (existing) {
-        await (prisma as any).projectDocument.update({
+        await prisma.engagementDocument.update({
           where: { id: existing.id },
           data: { settings: {}, slug: null, updatedAt: new Date() },
         })
@@ -185,22 +185,25 @@ export async function PUT(
         const docTitle = existing.fileName || title || documentIdParam
         updateData.slug = generateShareSlug(docTitle, existing.id.slice(0, 8))
       }
-      await (prisma as any).projectDocument.update({
+      await prisma.engagementDocument.update({
         where: { id: existing.id },
         data: updateData,
       })
     } else {
       let slug = generateShareSlug(title || documentIdParam, Math.random().toString(36).slice(2, 10))
       for (let attempts = 0; attempts < 5; attempts++) {
-        const taken = await (prisma as any).projectDocument.findFirst({ where: { projectId, slug }, select: { id: true } })
+        const taken = await prisma.engagementDocument.findFirst({
+          where: { engagementId: projectId, slug },
+          select: { id: true },
+        })
         if (!taken) break
         slug = generateShareSlug(title || documentIdParam, Math.random().toString(36).slice(2, 10))
       }
-      const proj = await (prisma as any).project.findUnique({ where: { id: projectId }, select: { clientId: true } })
-      await (prisma as any).projectDocument.create({
+      const proj = await prisma.engagement.findUnique({ where: { id: projectId }, select: { clientId: true } })
+      await prisma.engagementDocument.create({
         data: {
-          projectId,
-          organizationId: fileInfo.organizationId,
+          engagementId: projectId,
+          firmId: fileInfo.organizationId,
           clientId: proj?.clientId ?? null,
           externalId: fileInfo.externalId,
           fileName: title || fileInfo.externalId,
@@ -211,11 +214,11 @@ export async function PUT(
       })
     }
 
-    const updated = await (prisma as any).projectDocument.findUnique({
+    const updated = await prisma.engagementDocument.findUnique({
       where: {
-        projectId_organizationId_externalId: {
-          projectId,
-          organizationId: fileInfo.organizationId,
+        engagementId_firmId_externalId: {
+          engagementId: projectId,
+          firmId: fileInfo.organizationId,
           externalId: fileInfo.externalId,
         },
       },
@@ -274,11 +277,11 @@ export async function DELETE(
     const fileInfo = await getFileInfo(projectId, documentIdParam)
     if (!fileInfo) return NextResponse.json({ error: 'File not found' }, { status: 404 })
 
-    const existing = await (prisma as any).projectDocument.findUnique({
+    const existing = await prisma.engagementDocument.findUnique({
       where: {
-        projectId_organizationId_externalId: {
-          projectId,
-          organizationId: fileInfo.organizationId,
+        engagementId_firmId_externalId: {
+          engagementId: projectId,
+          firmId: fileInfo.organizationId,
           externalId: fileInfo.externalId,
         },
       },
@@ -287,7 +290,7 @@ export async function DELETE(
 
     if (!existing) return NextResponse.json({ success: true })
 
-    await (prisma as any).projectDocument.update({
+    await prisma.engagementDocument.update({
       where: { id: existing.id },
       data: {
         settings: buildSettingsForDb((existing.settings as Record<string, unknown>) || null, {
@@ -311,7 +314,7 @@ export async function DELETE(
       userId: user.id,
     })
 
-    await (prisma as any).projectDocument.update({
+    await prisma.engagementDocument.update({
       where: { id: existing.id },
       data: { settings: {}, slug: null, updatedAt: new Date() },
     })

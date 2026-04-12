@@ -94,7 +94,7 @@ export class SearchService {
     INSERT INTO platform.engagement_documents (
       "firmId",
       "clientId",
-      "projectId",
+      "engagementId",
       "connectorId",
       "externalId",
       "parentId",
@@ -123,7 +123,7 @@ export class SearchService {
       $13::jsonb,
       NOW()
     )
-    ON CONFLICT ("projectId", "firmId", "externalId")
+    ON CONFLICT ("engagementId", "firmId", "externalId")
     DO UPDATE SET
       "fileName" = EXCLUDED."fileName",
       "isFolder" = EXCLUDED."isFolder",
@@ -221,7 +221,7 @@ export class SearchService {
             const queryParams: any[] = [embeddingSql, params.organizationId]
 
             if (params.projectId) {
-                scopeFilter += ` AND "projectId" = $3::uuid`
+                scopeFilter += ` AND "engagementId" = $3::uuid`
                 queryParams.push(params.projectId)
             } else if (params.clientId) {
                 scopeFilter += ` AND "clientId" = $3::uuid`
@@ -266,7 +266,7 @@ export class SearchService {
         SELECT "externalId"
         FROM platform.engagement_documents
         WHERE "firmId" = $1::uuid
-          AND "projectId" = $2::uuid
+          AND "engagementId" = $2::uuid
           AND "isFolder" = true
       `, params.organizationId, params.projectId)
             return results.map(r => r.externalId)
@@ -289,7 +289,7 @@ export class SearchService {
             const queryParams: any[] = [params.organizationId, `%${params.query}%`]
 
             if (params.projectId) {
-                scopeFilter += ` AND "projectId" = $3::uuid`
+                scopeFilter += ` AND "engagementId" = $3::uuid`
                 queryParams.push(params.projectId)
             } else if (params.clientId) {
                 scopeFilter += ` AND "clientId" = $3::uuid`
@@ -343,7 +343,7 @@ export class SearchService {
             const queryParams: any[] = [params.organizationId]
 
             if (params.projectId) {
-                scopeFilter += ` AND "projectId" = $2::uuid`
+                scopeFilter += ` AND "engagementId" = $2::uuid`
                 queryParams.push(params.projectId)
             } else if (params.clientId) {
                 scopeFilter += ` AND "clientId" = $2::uuid`
@@ -399,12 +399,12 @@ export class SearchService {
             const results = await prisma.$queryRawUnsafe<{ externalId: string }[]>(`
         WITH RECURSIVE under_root AS (
             SELECT "externalId" FROM platform.engagement_documents
-            WHERE "firmId" = $1::uuid AND "projectId" = $2::uuid AND "isFolder" = true
+            WHERE "firmId" = $1::uuid AND "engagementId" = $2::uuid AND "isFolder" = true
               AND ("externalId" = $3 OR "parentId" = $3)
             UNION ALL
             SELECT p."externalId" FROM platform.engagement_documents p
             JOIN under_root u ON p."parentId" = u."externalId"
-            WHERE p."firmId" = $1::uuid AND p."projectId" = $2::uuid AND p."isFolder" = true
+            WHERE p."firmId" = $1::uuid AND p."engagementId" = $2::uuid AND p."isFolder" = true
         )
         SELECT "externalId" FROM under_root
       `, organizationId, projectId, rootFolderId)
@@ -429,12 +429,12 @@ export class SearchService {
             const results = await prisma.$queryRawUnsafe<{ externalId: string }[]>(`
         WITH RECURSIVE under_root AS (
             SELECT "externalId" FROM platform.engagement_documents
-            WHERE "firmId" = $1::uuid AND "projectId" = $2::uuid
+            WHERE "firmId" = $1::uuid AND "engagementId" = $2::uuid
               AND ("externalId" = $3 OR "parentId" = $3)
             UNION ALL
             SELECT p."externalId" FROM platform.engagement_documents p
             JOIN under_root u ON p."parentId" = u."externalId"
-            WHERE p."firmId" = $1::uuid AND p."projectId" = $2::uuid
+            WHERE p."firmId" = $1::uuid AND p."engagementId" = $2::uuid
         )
         SELECT "externalId" FROM under_root
       `, organizationId, projectId, rootFolderId)

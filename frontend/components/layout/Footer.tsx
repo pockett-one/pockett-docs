@@ -1,115 +1,218 @@
 "use client"
 
 import Link from "next/link"
+import { useCallback } from "react"
+import { Mail, Share2 } from "lucide-react"
 import Logo from "@/components/Logo"
-import { Mail } from "lucide-react"
+import { BrandName } from "@/components/brand/BrandName"
 import { BRAND_NAME } from "@/config/brand"
+import { platformEmail } from "@/config/platform-domain"
+import { requestOpenCookieSettings } from "@/lib/cookie-consent-storage"
+import {
+    BLOG_BASE_PATH,
+    CALENDLY_DEMO_URL,
+    MARKETING_PAGE_SHELL,
+    platformMegaMenuItems,
+} from "@/lib/marketing/target-audience-nav"
+import { cn } from "@/lib/utils"
 
 interface FooterProps {
-    onOpenModal?: (modalName: string) => void;
+    onOpenModal?: (modalName: string) => void
 }
 
-export function Footer({ onOpenModal }: FooterProps) {
+/** Global marketing footer — matches `docs/design/v4/landing-v4.html` (white, kinetic columns). */
+export function Footer({ onOpenModal: _onOpenModal }: FooterProps) {
+    const infoEmail = platformEmail("info")
+    const year = new Date().getFullYear()
+
+    const handleSharePage = useCallback(async () => {
+        if (typeof window === "undefined") return
+        const url = window.location.href
+        const title = document.title?.trim() || BRAND_NAME
+        const text = `${BRAND_NAME} — Organize · Protect · Deliver`
+
+        if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
+            try {
+                await navigator.share({ title, text, url })
+                return
+            } catch (err) {
+                if (err instanceof Error && err.name === "AbortError") return
+            }
+        }
+
+        try {
+            await navigator.clipboard.writeText(url)
+        } catch {
+            window.prompt("Copy this link:", url)
+        }
+    }, [])
+
+    const footerMetaText =
+        "text-sm leading-snug text-[#45474c] [font-family:var(--font-kinetic-body),system-ui,sans-serif]"
+
     return (
-        <footer className="relative bg-[#FDFBFF] pt-16 pb-12 md:pb-12 overflow-hidden text-slate-900 border-t border-purple-100">
-            {/* --- SAND DUNES SVGs (Refined Broad Waves) --- */}
-            <div className="absolute inset-x-0 bottom-0 h-[200px] sm:h-[300px] md:h-[400px] w-full overflow-hidden pointer-events-none select-none">
-                {/* Back Layer - Broad & Tall */}
-                <svg
-                    className="absolute bottom-0 left-0 w-full h-full text-purple-50 fill-current transform scale-105"
-                    preserveAspectRatio="none"
-                    viewBox="0 0 1440 320"
-                    xmlns="http://www.w3.org/2000/svg"
-                >
-                    <path d="M0,192L60,197.3C120,203,240,213,360,208C480,203,600,181,720,176C840,171,960,181,1080,181.3C1200,181,1320,171,1380,165.3L1440,160L1440,320L1380,320C1320,320,1200,320,1080,320C960,320,840,320,720,320C600,320,480,320,360,320C240,320,120,320,60,320L0,320Z" />
-                </svg>
-
-                {/* Middle Layer - distinct offsets */}
-                <svg
-                    className="absolute bottom-0 left-0 w-full h-[60%] text-purple-100/60 fill-current"
-                    preserveAspectRatio="none"
-                    viewBox="0 0 1440 320"
-                    xmlns="http://www.w3.org/2000/svg"
-                >
-                    <path d="M0,128L80,138.7C160,149,320,171,480,165.3C640,160,800,128,960,122.7C1120,117,1280,139,1360,149.3L1440,160L1440,320L1360,320C1280,320,1120,320,960,320C800,320,640,320,480,320C320,320,160,320,80,320L0,320Z"></path>
-                </svg>
-
-                {/* Front Layer - Vibrant Accent */}
-                <svg
-                    className="absolute -bottom-2 left-0 w-full h-[30%] text-purple-200/50 fill-current"
-                    preserveAspectRatio="none"
-                    viewBox="0 0 1440 320"
-                    xmlns="http://www.w3.org/2000/svg"
-                >
-                    <path d="M0,224L48,213.3C96,203,192,181,288,181.3C384,181,480,203,576,224C672,245,768,267,864,250.7C960,235,1056,181,1152,165.3C1248,149,1344,171,1392,181.3L1440,192L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"></path>
-                </svg>
-            </div>
-
-            <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-20 sm:pb-12 md:pb-0">
-                {/* Main Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-5 gap-8 md:gap-8 mb-12">
-                    {/* Brand Column (Wider) */}
-                    <div className="md:col-span-2 mb-8 md:mb-0">
-                        <div className="mb-4">
-                            <Logo size="md" />
+        <footer className="border-t border-[#c6c6cc]/10 bg-white pb-6 pt-8 text-[#1b1b1d]">
+            <div className={cn(MARKETING_PAGE_SHELL, "w-full")}>
+                <div className="mb-6 grid grid-cols-2 gap-x-8 gap-y-8 md:grid-cols-12 md:gap-8">
+                    <div className="col-span-2 md:col-span-4">
+                        <div className="mb-3">
+                            <Link
+                                href="/"
+                                className="inline-flex max-w-full shrink-0"
+                            >
+                                {/* Same lockup as global `Header` (`Logo` + `BrandName` + default tagline). */}
+                                <Logo size="md" showText wordmarkClassName="text-2xl leading-none" />
+                            </Link>
                         </div>
-                        <p className="text-slate-600 text-sm mb-6 max-w-sm leading-relaxed font-medium">
-                            Simple insights & control over Google Drive for freelancers, consultants & small agencies. No per-seat tax.
+                        <p className="max-w-sm leading-relaxed text-[#45474c] [font-family:var(--font-kinetic-body),system-ui,sans-serif] text-sm">
+                            Stop sending raw Drive links. Deliver a professional client portal on the storage you already
+                            trust — non-custodial, with revoke-on-close discipline for your IP.
                         </p>
-
-                        <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 items-start sm:items-center">
-                            {/* Status Badge */}
-                            <div className="inline-flex items-center px-2.5 py-1 rounded-full border border-slate-200 bg-white/50 shadow-sm backdrop-blur-sm">
-                                <div className="h-1.5 w-1.5 bg-emerald-500 rounded-full mr-2 relative">
-                                    <div className="absolute inset-0 bg-emerald-500 rounded-full animate-ping opacity-75"></div>
-                                </div>
-                                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Systems Online</span>
-                            </div>
-
-                            {/* Email */}
-                            <a href="mailto:info@pockett.io" className="flex items-center space-x-2 text-slate-500 hover:text-purple-700 transition-colors">
-                                <Mail className="h-4 w-4" />
-                                <span className="text-sm font-medium">info@pockett.io</span>
-                            </a>
-                        </div>
                     </div>
 
-                    {/* Links Column 1: Product */}
-                    <div className="md:col-start-3 mb-6 md:mb-0">
-                        <h3 className="font-bold text-slate-900 mb-4 text-sm">Product</h3>
-                        <ul className="space-y-2 text-sm">
-                            <li><Link href="/resources/docs" target="_blank" className="text-slate-500 hover:text-purple-700 transition-colors block py-0.5">User Guide</Link></li>
-                            <li><Link href="/trust-center" className="text-slate-500 hover:text-purple-700 transition-colors block py-0.5">Trust Center</Link></li>
-                            <li><Link href="/contact" className="text-slate-500 hover:text-purple-700 transition-colors block py-0.5">Contact</Link></li>
+                    <div className="col-span-1 md:col-span-2 md:ml-auto">
+                        <h4 className="mb-3 text-sm font-bold text-[#1b1b1d] [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
+                            Platform
+                        </h4>
+                        <ul className="space-y-2">
+                            {platformMegaMenuItems.map((item) => (
+                                <li key={item.id}>
+                                    <Link
+                                        href={item.href}
+                                        className="text-sm text-[#45474c] transition-colors hover:text-[#22c55e] [font-family:var(--font-kinetic-body),system-ui,sans-serif]"
+                                    >
+                                        {item.title}
+                                    </Link>
+                                </li>
+                            ))}
+                            <li>
+                                <Link
+                                    href="/pricing"
+                                    className="text-sm text-[#45474c] transition-colors hover:text-[#22c55e] [font-family:var(--font-kinetic-body),system-ui,sans-serif]"
+                                >
+                                    Pricing
+                                </Link>
+                            </li>
                         </ul>
                     </div>
 
-                    {/* Links Column 2: Resources */}
-                    <div className="mb-6 md:mb-0">
-                        <h3 className="font-bold text-slate-900 mb-4 text-sm">Resources</h3>
-                        <ul className="space-y-2 text-sm">
-                            <li><Link href="/faq" className="text-slate-500 hover:text-purple-700 transition-colors block py-0.5">FAQs</Link></li>
-                            <li><Link href="/blog" className="text-slate-500 hover:text-purple-700 transition-colors block py-0.5">Blog</Link></li>
+                    <div className="col-span-1 md:col-span-2 md:ml-auto">
+                        <h4 className="mb-3 text-sm font-bold text-[#1b1b1d] [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
+                            Resources
+                        </h4>
+                        <ul className="space-y-2">
+                            <li>
+                                <Link
+                                    href="/resources/faq"
+                                    className="text-sm text-[#45474c] transition-colors hover:text-[#22c55e] [font-family:var(--font-kinetic-body),system-ui,sans-serif]"
+                                >
+                                    FAQs
+                                </Link>
+                            </li>
+                            <li>
+                                <Link
+                                    href={BLOG_BASE_PATH}
+                                    className="text-sm text-[#45474c] transition-colors hover:text-[#22c55e] [font-family:var(--font-kinetic-body),system-ui,sans-serif]"
+                                >
+                                    Blog
+                                </Link>
+                            </li>
                         </ul>
                     </div>
 
-                    {/* Links Column 3: Legal */}
-                    <div className="mb-6 md:mb-0">
-                        <h3 className="font-bold text-slate-900 mb-4 text-sm">Legal</h3>
-                        <ul className="space-y-2 text-sm">
-                            <li><Link href="/privacy" className="text-slate-500 hover:text-purple-700 transition-colors block py-0.5">Privacy Policy</Link></li>
-                            <li><Link href="/terms" className="text-slate-500 hover:text-purple-700 transition-colors block py-0.5">Terms of Service</Link></li>
+                    <div className="col-span-1 md:col-span-2 md:ml-auto">
+                        <h4 className="mb-3 text-sm font-bold text-[#1b1b1d] [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
+                            Contact
+                        </h4>
+                        <ul className="space-y-2">
+                            <li>
+                                <Link
+                                    href="/contact"
+                                    className="text-sm text-[#45474c] transition-colors hover:text-[#22c55e] [font-family:var(--font-kinetic-body),system-ui,sans-serif]"
+                                >
+                                    Get in touch
+                                </Link>
+                            </li>
+                            <li>
+                                <a
+                                    href={CALENDLY_DEMO_URL}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-sm text-[#45474c] transition-colors hover:text-[#22c55e] [font-family:var(--font-kinetic-body),system-ui,sans-serif]"
+                                >
+                                    Book a demo
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div className="col-span-1 md:col-span-2 md:ml-auto">
+                        <h4 className="mb-3 text-sm font-bold text-[#1b1b1d] [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
+                            Legal
+                        </h4>
+                        <ul className="space-y-2">
+                            <li>
+                                <Link
+                                    href="/privacy"
+                                    className="text-sm text-[#45474c] transition-colors hover:text-[#22c55e] [font-family:var(--font-kinetic-body),system-ui,sans-serif]"
+                                >
+                                    Privacy Policy
+                                </Link>
+                            </li>
+                            <li>
+                                <Link
+                                    href="/terms"
+                                    className="text-sm text-[#45474c] transition-colors hover:text-[#22c55e] [font-family:var(--font-kinetic-body),system-ui,sans-serif]"
+                                >
+                                    Terms of Service
+                                </Link>
+                            </li>
+                            <li>
+                                <button
+                                    type="button"
+                                    onClick={() => requestOpenCookieSettings()}
+                                    className="text-left text-sm text-[#45474c] transition-colors hover:text-[#22c55e] [font-family:var(--font-kinetic-body),system-ui,sans-serif]"
+                                >
+                                    Cookie settings
+                                </button>
+                            </li>
                         </ul>
                     </div>
                 </div>
 
-                {/* Copyright Row (Full Width) */}
-                <div className="pt-8 border-t border-slate-100 flex flex-col md:flex-row justify-between items-center gap-4 text-xs font-medium text-slate-400">
-                    <div>
-                        &copy; {new Date().getFullYear()} {BRAND_NAME}. All rights reserved.
-                    </div>
-                    <div className="flex items-center gap-6">
-                        {/* Optional bottom links if needed, or empty */}
+                <div className="border-t border-[#c6c6cc]/10 pt-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+                        <div className={cn("flex flex-wrap items-center gap-x-1 gap-y-0.5", footerMetaText)}>
+                            <span>© {year}</span>
+                            <span className="font-semibold text-[#1b1b1d]">
+                                <BrandName gradient={false} className="inline text-sm font-semibold text-[#1b1b1d]" />
+                                .
+                            </span>
+                            <span>All rights reserved.</span>
+                        </div>
+                        <div className="flex w-full flex-wrap items-center justify-end gap-3 sm:w-auto">
+                            <button
+                                type="button"
+                                onClick={() => void handleSharePage()}
+                                className={cn(
+                                    "group flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-full border border-[#c6c6cc] bg-[#f6f3f4] transition-all hover:border-[#22c55e]",
+                                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#22c55e]/40 focus-visible:ring-offset-2",
+                                )}
+                                aria-label="Share this page"
+                            >
+                                <Share2 className="h-4 w-4 text-[#45474c] group-hover:text-[#22c55e]" aria-hidden />
+                            </button>
+                            <a
+                                href={`mailto:${infoEmail}`}
+                                className={cn(
+                                    "flex items-center gap-2 text-[#45474c] transition-colors hover:text-[#1b1b1d]",
+                                    footerMetaText,
+                                )}
+                            >
+                                <Mail className="h-4 w-4 shrink-0" aria-hidden />
+                                <span>{infoEmail}</span>
+                            </a>
+                        </div>
                     </div>
                 </div>
             </div>

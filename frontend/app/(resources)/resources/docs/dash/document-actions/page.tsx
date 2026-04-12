@@ -1,4 +1,5 @@
 import { Menu, Eye, History, Download, ExternalLink, FileText, Copy } from "lucide-react"
+import { BRAND_NAME } from "@/config/brand"
 import { DocSection } from "@/components/docs/doc-section"
 import { InfoBox } from "@/components/docs/info-box"
 import { StepList } from "@/components/docs/step-list"
@@ -57,7 +58,7 @@ export default function DocumentActionsPage() {
             {/* Document Preview */}
             <DocSection title="Document Preview" icon={Eye} color="purple">
                 <p className="text-gray-600 mb-4">
-                    Preview Google Docs, Sheets, and Slides directly within Pockett without leaving the dashboard.
+                    Preview Google Docs, Sheets, and Slides directly within {BRAND_NAME} without leaving the dashboard.
                 </p>
                 <StepList
                     title="How to preview:"
@@ -136,7 +137,7 @@ export default function DocumentActionsPage() {
             {/* Downloads */}
             <DocSection title="Secure Downloads" icon={Download} color="green">
                 <p className="text-gray-600 mb-4">
-                    Download documents and specific versions directly through Pockett's secure proxy.
+                    Download documents and specific versions directly through {BRAND_NAME}&apos;s secure proxy.
                 </p>
                 <div className="bg-gray-50 rounded-lg p-4 space-y-3">
                     <h3 className="font-semibold text-gray-900">Download options:</h3>

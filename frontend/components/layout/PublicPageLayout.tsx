@@ -15,7 +15,7 @@ interface PublicPageLayoutProps {
  * 
  * Includes:
  * - Fixed Header with proper mobile spacing
- * - Proper top padding to account for fixed header (pt-32 mobile, pt-36 desktop)
+ * - Proper top padding to account for fixed flush header (pt-24 mobile, pt-28 desktop)
  * - Optional Footer
  * 
  * Usage:
@@ -31,7 +31,9 @@ export function PublicPageLayout({
     className = ""
 }: PublicPageLayoutProps) {
     return (
-        <div className={`min-h-screen bg-white text-slate-900 font-sans selection:bg-purple-500 selection:text-white overflow-hidden ${className}`}>
+        <div
+            className={`min-h-screen bg-white text-slate-900 font-sans antialiased [font-family:var(--font-kinetic-body),system-ui,sans-serif] selection:bg-[#B07D62] selection:text-white overflow-hidden ${className}`}
+        >
             {/* Background Ambience - Matching Landing Page */}
             <div className="fixed inset-0 z-0 pointer-events-none">
                 {/* Dot Grid */}
@@ -42,14 +44,14 @@ export function PublicPageLayout({
                         backgroundSize: '32px 32px' 
                     }}
                 />
-                {/* Subtle Purple Haze */}
-                <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-purple-100/40 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/2" />
+                {/* Subtle peach haze (aligned with marketing landing) */}
+                <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-[#ECC0AA]/28 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/2" />
                 <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-slate-100/50 rounded-full blur-[100px] translate-y-1/2 -translate-x-1/4" />
             </div>
 
             <Header />
             
-            <div className="relative z-10 pt-32 pb-20 lg:pt-36 lg:pb-28">
+            <div className="relative z-10 pt-24 pb-20 lg:pt-28 lg:pb-28">
                 {children}
             </div>
 

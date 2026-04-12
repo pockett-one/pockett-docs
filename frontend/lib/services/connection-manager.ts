@@ -14,7 +14,7 @@ export async function duplicateConnectorForOrganization(
   prismaClient: any
 ) {
   // Find connector for source organization
-  const sourceOrg = await prismaClient.organization.findUnique({
+  const sourceOrg = await prismaClient.firm.findUnique({
     where: { id: sourceOrgId },
     select: { connectorId: true }
   })
@@ -32,7 +32,7 @@ export async function duplicateConnectorForOrganization(
   }
 
   // Check if target organization already has a connector
-  const targetOrg = await prismaClient.organization.findUnique({
+  const targetOrg = await prismaClient.firm.findUnique({
     where: { id: targetOrgId },
     select: { connectorId: true }
   })
@@ -48,7 +48,7 @@ export async function duplicateConnectorForOrganization(
   }
 
   // Link the source connector to the target organization (1:N — no new connector row)
-  await prismaClient.organization.update({
+  await prismaClient.firm.update({
     where: { id: targetOrgId },
     data: { connectorId: sourceConnector.id }
   })

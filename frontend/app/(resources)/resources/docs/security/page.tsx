@@ -1,5 +1,5 @@
-
 import { Shield, Lock, Server, EyeOff, FileCheck } from "lucide-react"
+import { BRAND_NAME } from "@/config/brand"
 
 export default function SecurityDocsPage() {
     return (
@@ -7,7 +7,7 @@ export default function SecurityDocsPage() {
             <div>
                 <h1 className="text-3xl font-bold text-gray-900 mb-4">Security & Privacy</h1>
                 <p className="text-lg text-gray-600 leading-relaxed">
-                    At Pockett, we prioritize the confidentiality and integrity of your data.
+                    At {BRAND_NAME}, we prioritize the confidentiality and integrity of your data.
                     Our architecture is designed to act as a secure pass-through, ensuring that your files
                     are never stored on our infrastructure.
                 </p>
@@ -52,7 +52,7 @@ export default function SecurityDocsPage() {
                 <div className="border-l-4 border-blue-500 pl-4 py-2 bg-gray-50 my-6">
                     <h3 className="text-lg font-semibold text-gray-900 m-0">Secure Download Architecture</h3>
                     <p className="text-gray-600 mt-2">
-                        When you initiate a file download, Pockett establishes a secure tunnel.
+                        When you initiate a file download, {BRAND_NAME} establishes a secure tunnel.
                         The file content is streamed directly from Google's secure servers to your device.
                         This process ensures that no complete file is ever written to our disks, maintaining strict data hygiene.
                     </p>
@@ -78,7 +78,7 @@ export default function SecurityDocsPage() {
                             <span className="font-medium text-gray-900 block">Granular Permissions</span>
                             <span className="text-gray-600">
                                 We only request the permissions strictly necessary to list and download your files.
-                                You can revoke access at any time from your Google Account settings or the Pockett dashboard.
+                                You can revoke access at any time from your Google Account settings or the {BRAND_NAME}{" "}dashboard.
                             </span>
                         </div>
                     </div>

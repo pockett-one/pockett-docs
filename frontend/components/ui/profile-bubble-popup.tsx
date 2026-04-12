@@ -22,6 +22,15 @@ export interface ProfileBubblePopupUser {
     email: string
     avatarUrl?: string | null
     personaName?: string
+    /**
+     * When set, header shows three rows: name, email, plan line (e.g. app shell profile menu).
+     * When omitted, second row is `headerSecondary ?? email` (legacy).
+     */
+    menuPlanLine?: string | null
+    /** When set, shown under the name instead of email (e.g. plan). Copy copies this value. */
+    headerSecondary?: string | null
+    /** Match the trigger: sidebar uses `default` when collapsed, `lg` when expanded. */
+    bubbleSize?: 'default' | 'lg'
 }
 
 /** Square bubble: gray border, white padding inside. Size default (w-6 h-6) or lg (w-10 h-10). Shows initials with bg when no image. */
@@ -64,11 +73,12 @@ export function ProfileBubblePopupContent({
     email,
     avatarUrl,
     personaName,
+    menuPlanLine,
+    headerSecondary,
+    bubbleSize = 'lg',
     footer,
 }: ProfileBubblePopupUser & { footer?: React.ReactNode }) {
     const { addToast } = useToast()
-    const [imageError, setImageError] = React.useState(false)
-    const showImage = Boolean(avatarUrl) && !imageError
     const copyToClipboard = (e: React.MouseEvent, text: string, label: string) => {
         e.preventDefault()
         e.stopPropagation()
@@ -80,17 +90,8 @@ export function ProfileBubblePopupContent({
     return (
         <div className="flex flex-col">
             <div className="flex gap-3 p-3 pb-2">
-                <div className={`shrink-0 w-12 h-12 rounded-lg border border-slate-200 p-1 flex items-center justify-center ${showImage ? 'bg-white' : 'bg-slate-100'}`}>
-                    {showImage ? (
-                        <img
-                            src={avatarUrl!}
-                            alt=""
-                            className="w-full h-full rounded-md object-cover object-center"
-                            onError={() => setImageError(true)}
-                        />
-                    ) : (
-                        <span className="text-sm font-medium text-slate-600">{getInitials(name)}</span>
-                    )}
+                <div className="shrink-0 self-center">
+                    <ProfileBubble name={name} avatarUrl={avatarUrl} size={bubbleSize} />
                 </div>
                 <div className="flex-1 min-w-0 flex flex-col justify-center gap-0.5">
                     <div className="flex items-center justify-between gap-1.5">
@@ -100,25 +101,69 @@ export function ProfileBubblePopupContent({
                         <button
                             type="button"
                             onClick={(e) => copyToClipboard(e, name, 'Name')}
-                            className="shrink-0 p-0.5 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100"
+                            className="shrink-0 rounded-md p-0.5 text-slate-400 transition-all duration-200 hover:scale-110 hover:bg-slate-50 hover:text-slate-700 active:scale-95"
                             title="Copy name"
                         >
                             <Copy className="h-3.5 w-3.5" />
                         </button>
                     </div>
-                    <div className="flex items-center justify-between gap-1.5">
-                        <span className="text-[11px] text-slate-500 truncate" title={email}>
-                            {email}
-                        </span>
-                        <button
-                            type="button"
-                            onClick={(e) => copyToClipboard(e, email, 'Email')}
-                            className="shrink-0 p-0.5 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100"
-                            title="Copy email"
-                        >
-                            <Copy className="h-3 w-3" />
-                        </button>
-                    </div>
+                    {menuPlanLine !== undefined ? (
+                        <>
+                            <div className="flex items-center justify-between gap-1.5">
+                                <span className="text-[11px] text-slate-500 truncate" title={email}>
+                                    {email}
+                                </span>
+                                <button
+                                    type="button"
+                                    onClick={(e) => copyToClipboard(e, email, 'Email')}
+                                    className="shrink-0 rounded-md p-0.5 text-slate-400 transition-all duration-200 hover:scale-110 hover:bg-slate-50 hover:text-slate-700 active:scale-95"
+                                    title="Copy email"
+                                >
+                                    <Copy className="h-3 w-3" />
+                                </button>
+                            </div>
+                            <div className="flex items-center justify-between gap-1.5">
+                                <span
+                                    className="min-w-0 truncate text-[11px] text-slate-700"
+                                    title={menuPlanLine ?? undefined}
+                                >
+                                    <span className="font-medium text-slate-500">Plan:</span>{' '}
+                                    <span className="font-semibold text-slate-900">{menuPlanLine || '—'}</span>
+                                </span>
+                                <button
+                                    type="button"
+                                    onClick={(e) => copyToClipboard(e, menuPlanLine || '—', 'Plan')}
+                                    className="shrink-0 rounded-md p-0.5 text-slate-400 transition-all duration-200 hover:scale-110 hover:bg-slate-50 hover:text-slate-700 active:scale-95"
+                                    title="Copy plan"
+                                >
+                                    <Copy className="h-3 w-3" />
+                                </button>
+                            </div>
+                        </>
+                    ) : (
+                        <div className="flex items-center justify-between gap-1.5">
+                            <span
+                                className="text-[11px] text-slate-500 truncate"
+                                title={headerSecondary != null ? headerSecondary : email}
+                            >
+                                {headerSecondary != null ? headerSecondary : email}
+                            </span>
+                            <button
+                                type="button"
+                                onClick={(e) =>
+                                    copyToClipboard(
+                                        e,
+                                        headerSecondary != null ? headerSecondary : email,
+                                        headerSecondary != null ? 'Plan' : 'Email'
+                                    )
+                                }
+                                className="shrink-0 rounded-md p-0.5 text-slate-400 transition-all duration-200 hover:scale-110 hover:bg-slate-50 hover:text-slate-700 active:scale-95"
+                                title={headerSecondary != null ? 'Copy plan' : 'Copy email'}
+                            >
+                                <Copy className="h-3 w-3" />
+                            </button>
+                        </div>
+                    )}
                     {personaName && (
                         <p className="text-[10px] uppercase tracking-wider font-semibold text-slate-400 mt-0.5 truncate">
                             {personaName}
@@ -126,11 +171,7 @@ export function ProfileBubblePopupContent({
                     )}
                 </div>
             </div>
-            {footer && (
-                <div className="px-3 pb-3">
-                    {footer}
-                </div>
-            )}
+            {footer && <div className="border-t border-slate-200 px-3 pb-3 pt-2">{footer}</div>}
         </div>
     )
 }
@@ -154,7 +195,13 @@ export function ProfileBubbleWithPopup({
                 side="top"
                 className="z-[100] max-w-[280px] border border-slate-200 bg-white p-0 text-slate-900 shadow-lg overflow-hidden"
             >
-                <ProfileBubblePopupContent name={name} email={email} avatarUrl={avatarUrl} personaName={personaName} />
+                <ProfileBubblePopupContent
+                    name={name}
+                    email={email}
+                    avatarUrl={avatarUrl}
+                    personaName={personaName}
+                    bubbleSize={size}
+                />
             </TooltipContent>
         </Tooltip>
     )

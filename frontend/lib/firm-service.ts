@@ -1,6 +1,8 @@
 import { prisma } from './prisma'
 import { User } from '@supabase/supabase-js'
 import { logger } from './logger'
+import { assertWithinFirmGroupCap } from '@/lib/billing/effective-billing-caps'
+import { userHasMembershipUnderAnchor } from '@/lib/billing/firm-creation-gate'
 
 export interface CreateFirmData {
   userId: string
@@ -18,6 +20,11 @@ export interface CreateFirmData {
   connectorId?: string | null
   /** Whether this is a sandbox firm. */
   sandboxOnly?: boolean
+  /**
+   * When set, this firm shares the Polar subscription of the anchor (e.g. paid sandbox workspace).
+   * Required for custom firms so `subscription-gate` resolves the same anchor as checkout.
+   */
+  billingSharesSubscriptionFromFirmId?: string | null
 }
 
 export interface FirmWithMembers {
@@ -77,6 +84,25 @@ export class FirmService {
     const { generateFirmSlug } = await import('@/lib/slug-utils')
     const slug = await generateFirmSlug(data.firmName)
 
+    const billingAnchorId = data.billingSharesSubscriptionFromFirmId?.trim() || null
+    if (billingAnchorId) {
+      const anchorRow = await prisma.firm.findUnique({
+        where: { id: billingAnchorId },
+        select: { anchorFirmId: true },
+      })
+      if (!anchorRow) {
+        throw new Error('Billing anchor firm not found.')
+      }
+      if (anchorRow.anchorFirmId) {
+        throw new Error('Nested anchor hierarchies are not supported.')
+      }
+      const allowed = await userHasMembershipUnderAnchor(data.userId, billingAnchorId)
+      if (!allowed) {
+        throw new Error('You cannot attach this workspace to that billing subscription.')
+      }
+      await assertWithinFirmGroupCap(billingAnchorId)
+    }
+
     const firm = await (prisma as any).$transaction(async (tx: any) => {
       const created = await tx.firm.create({
         data: {
@@ -88,10 +114,19 @@ export class FirmService {
           firmFolderId: data.firmFolderId,
           connectorId: data.connectorId,
           sandboxOnly: data.sandboxOnly ?? false,
+          anchorFirmId: billingAnchorId,
+          billingSharesSubscriptionFromFirmId: billingAnchorId,
           createdBy: data.userId,
           updatedBy: data.userId,
         },
       })
+
+      if (data.connectorId) {
+        await tx.connector.update({
+          where: { id: data.connectorId },
+          data: { firmId: created.id },
+        })
+      }
 
       await tx.firmMember.create({
         data: {
@@ -218,35 +253,6 @@ export class FirmService {
   static async generateUniqueSlug(name: string): Promise<string> {
     const { generateFirmSlug } = await import('@/lib/slug-utils')
     return generateFirmSlug(name)
-  }
-
-  static async autoProvisionDefaultSandbox(user: {
-    id: string
-    email?: string | null
-    user_metadata?: { first_name?: string; full_name?: string }
-  }): Promise<FirmWithMembers> {
-    const firstName =
-      user.user_metadata?.first_name ||
-      (user.user_metadata?.full_name && user.user_metadata.full_name.split(' ')[0]) ||
-      (user.email && user.email.split('@')[0]) ||
-      'My'
-    const firmName = firstName.trim() || 'My Workspace'
-    const safeName = firmName.replace(/\\s+/g, ' ').trim().slice(0, 100) || 'My Workspace'
-
-    const firm = await this.createFirmWithMember({
-      userId: user.id,
-      email: user.email || '',
-      firstName,
-      lastName: '',
-      firmName: safeName,
-      sandboxOnly: true,
-      connectorId: null,
-      allowDomainAccess: false,
-    })
-
-    await this.setDefaultFirm(user.id, firm.id)
-    await this.updateFirm(firm.id, user.id, { settings: { onboarding: { isComplete: true } } })
-    return firm
   }
 }
 

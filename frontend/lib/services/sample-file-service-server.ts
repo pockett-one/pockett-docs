@@ -12,7 +12,7 @@ import {
     type SampleFolder,
 } from './sample-file-service'
 
-export { DEFAULT_SAMPLE_FILES, SANDBOX_PROJECT_DATA } from './sample-file-service'
+export { DEFAULT_SAMPLE_FILES, SANDBOX_ENGAGEMENT_FOLDER_DATA } from './sample-file-service'
 
 export class SampleFileService {
     static async createSampleFiles(

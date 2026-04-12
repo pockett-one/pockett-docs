@@ -1,11 +1,13 @@
 import { MetadataRoute } from 'next'
 import { getAllPosts, getAllCategories } from '@/lib/blog-utils'
+import { getPlatformSiteOrigin } from '@/config/platform-domain'
+import { BLOG_BASE_PATH, TRUST_CENTER_PATH } from '@/lib/marketing/target-audience-nav'
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = 'https://pockett.io'
+  const baseUrl = getPlatformSiteOrigin()
   
   try {
-    // Static pages
+    // Static pages. `/resources/docs/**` is intentionally omitted while the in-app user guide is stale / not surfaced in marketing nav.
     const staticPages: MetadataRoute.Sitemap = [
       {
         url: baseUrl,
@@ -14,7 +16,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
         priority: 1,
       },
       {
-        url: `${baseUrl}/blog`,
+        url: `${baseUrl}${BLOG_BASE_PATH}`,
         lastModified: new Date(),
         changeFrequency: 'daily',
         priority: 0.9,
@@ -26,7 +28,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
         priority: 0.7,
       },
       {
-        url: `${baseUrl}/faq`,
+        url: `${baseUrl}/resources/faq`,
         lastModified: new Date(),
         changeFrequency: 'monthly',
         priority: 0.7,
@@ -44,7 +46,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
         priority: 0.3,
       },
       {
-        url: `${baseUrl}/trust-center`,
+        url: `${baseUrl}${TRUST_CENTER_PATH}`,
         lastModified: new Date(),
         changeFrequency: 'monthly',
         priority: 0.6,
@@ -61,66 +63,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
         changeFrequency: 'monthly',
         priority: 0.7,
       },
-      {
-        url: `${baseUrl}/resources/docs`,
-        lastModified: new Date(),
-        changeFrequency: 'weekly',
-        priority: 0.75,
-      },
-      {
-        url: `${baseUrl}/resources/docs/features`,
-        lastModified: new Date(),
-        changeFrequency: 'weekly',
-        priority: 0.65,
-      },
-      {
-        url: `${baseUrl}/resources/docs/authentication/signup`,
-        lastModified: new Date(),
-        changeFrequency: 'monthly',
-        priority: 0.6,
-      },
-      {
-        url: `${baseUrl}/resources/docs/authentication/signin`,
-        lastModified: new Date(),
-        changeFrequency: 'monthly',
-        priority: 0.6,
-      },
-      {
-        url: `${baseUrl}/resources/docs/authentication/logout`,
-        lastModified: new Date(),
-        changeFrequency: 'monthly',
-        priority: 0.55,
-      },
-      {
-        url: `${baseUrl}/resources/docs/dash/connectors`,
-        lastModified: new Date(),
-        changeFrequency: 'monthly',
-        priority: 0.6,
-      },
-      {
-        url: `${baseUrl}/resources/docs/dash/insights`,
-        lastModified: new Date(),
-        changeFrequency: 'monthly',
-        priority: 0.6,
-      },
-      {
-        url: `${baseUrl}/resources/docs/dash/document-actions`,
-        lastModified: new Date(),
-        changeFrequency: 'monthly',
-        priority: 0.6,
-      },
-      {
-        url: `${baseUrl}/resources/docs/security`,
-        lastModified: new Date(),
-        changeFrequency: 'monthly',
-        priority: 0.65,
-      },
     ]
 
     // Blog category pages
     const categories = getAllCategories()
     const categoryPages: MetadataRoute.Sitemap = categories.map((category) => ({
-      url: `${baseUrl}/blog/${category}`,
+      url: `${baseUrl}${BLOG_BASE_PATH}/${category}`,
       lastModified: new Date(),
       changeFrequency: 'daily',
       priority: 0.8,
@@ -129,7 +77,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     // Blog post pages
     const posts = getAllPosts()
     const blogPostPages: MetadataRoute.Sitemap = posts.map((post) => ({
-      url: `${baseUrl}/blog/${post.category}/${post.slug}`,
+      url: `${baseUrl}${BLOG_BASE_PATH}/${post.category}/${post.slug}`,
       lastModified: new Date(post.date),
       changeFrequency: 'weekly',
       priority: 0.7,
@@ -147,7 +95,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
         priority: 1,
       },
       {
-        url: `${baseUrl}/blog`,
+        url: `${baseUrl}${BLOG_BASE_PATH}`,
         lastModified: new Date(),
         changeFrequency: 'daily',
         priority: 0.9,

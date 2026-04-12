@@ -521,23 +521,20 @@ Project-level UI (tabs and sidebar sub-menus) is restricted by persona. The foll
 
 ---
 
-## 11. Billing, Subscriptions & Payment (Polar)
+## 11. Billing, subscriptions & payment (Polar)
 
-**Purpose:** Enable paid plans (Standard, Pro, Business, Enterprise) with a single payment provider, keep organisation subscription state in sync with the provider, and support upgrade, renewal, and cancellation flows.
+**Purpose:** Enable paid plans (Standard, Pro, Business, Enterprise) with one provider, keep subscription state in sync, and support upgrade, renewal, and cancellation.
 
-**Payment gateway:** **Polar** (polar.sh) is used for checkout, subscriptions, and invoicing. Polar supports global customers and provides a hosted checkout and customer portal, reducing in-app payment logic and compliance scope.
+**Payment gateway:** **Polar** (polar.sh) — hosted checkout and customer portal.
 
-**Subscription data model:** Each organisation has subscription state stored in the application database (e.g. on the Organisation record or a linked Subscription record) so that feature access and UI can be decided without calling Polar on every request. Stored fields include:
+**Where details live (no duplication in this PRD):**
 
-- **Plan and status:** Subscription tier (e.g. Standard, Pro, Business, Enterprise), status (e.g. active, trialing, past_due, canceled, expired), and current period end date.
-- **Polar linkage:** Polar customer ID and Polar subscription ID (when subscribed), so the app can reconcile webhook events and link users to the correct organisation.
+- **Tiers, features, roadmap:** [prd-subscriptions.md#plans-and-feature-distribution](prd-subscriptions.md#plans-and-feature-distribution) and `frontend/config/pricing.ts`.
+- **Checkout, webhooks, DB fields, acceptance criteria:** [prd-subscriptions.md#polar-integration-and-data-contract](prd-subscriptions.md#polar-integration-and-data-contract).
+- **Architecture map:** [hld-subscription.md](hld-subscription.md).
 
-Pricing and plan limits (e.g. active projects per tier) are defined in product configuration and in the [subscription planning document](prd-subscriptions.md); the app enforces limits and feature gates based on the stored tier and status.
+**Data model (summary):** Subscription **state** (status, plan name, pricing model, period end, Polar customer/subscription ids) is stored on **`platform.subscriptions`**, keyed by **billing anchor** `firmId`. **`platform.firms`** holds **billing caps and grouping** (e.g. engagement limits, `billingSharesSubscriptionFromFirmId`) — not a second copy of Polar subscription columns. UI and session hints read the active subscription row (and caps) without calling Polar on every request.
 
-**Webhook integration:** Polar sends subscription and order events to a dedicated webhook endpoint (e.g. `POST /api/webhooks/polar`). The app:
+**Webhooks:** `POST /api/webhooks/polar` verifies Polar signatures and updates **`platform.subscriptions`** (and related hooks). Idempotent handling for retries.
 
-- **Verifies** each request using Polar’s signing secret so only Polar can trigger updates.
-- **Processes** events such as: subscription created/active/updated/canceled/revoked/past_due, and order created/paid, to update the organisation’s subscription tier, status, and period end.
-- **Handles idempotency** (e.g. by event ID) so retries do not apply the same change twice.
-
-Outcomes for the client: customers can subscribe and manage billing via Polar; the portal always shows the correct plan and feature set; renewals and cancellations are reflected automatically after Polar sends the corresponding events.
+**Outcome:** Customers manage billing in Polar; the app reflects the correct plan and limits after events sync.

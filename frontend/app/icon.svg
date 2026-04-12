@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="32" height="32" fill="none" aria-hidden="true">
+  <!--
+    Lucide square-function (ISC) — https://lucide.dev/icons/square-function
+    Gradient stops: keep in sync with BRAND_WORDMARK_GRADIENT_STOPS in config/brand.ts
+  -->
+  <defs>
+    <linearGradient id="firma-mark" x1="0%" y1="50%" x2="100%" y2="50%">
+      <stop offset="0%" stop-color="#4d4d4d"/>
+      <stop offset="50%" stop-color="#2d6d3a"/>
+      <stop offset="100%" stop-color="#4aba5e"/>
+    </linearGradient>
+  </defs>
+  <g stroke="url(#firma-mark)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <rect width="18" height="18" x="3" y="3" rx="2" ry="2"/>
+    <path d="M9 17c2 0 2.8-1 2.8-2.8V10c0-2 1-3.3 3.2-3"/>
+    <path d="M9 11.2h5.7"/>
+  </g>
+</svg>

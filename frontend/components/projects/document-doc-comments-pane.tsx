@@ -108,7 +108,7 @@ export function DocumentDocCommentsPane({ projectId, documentId, documentName }:
   }, [isExpanded])
 
   // View: user preference (global, stored in localStorage)
-  const COMMENTS_PREFS_KEY = 'pockett_comments_view_prefs_v1'
+  const COMMENTS_PREFS_KEY = 'fm_comments_view_prefs_v1'
   const [sortOrder, setSortOrder] = useState<'latestLast' | 'latestFirst'>('latestLast')
   const [hideOlderMessages, setHideOlderMessages] = useState(false)
 

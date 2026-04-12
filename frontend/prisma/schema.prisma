@@ -36,6 +36,14 @@ enum ConnectorStatus {
   @@schema("platform")
 }
 
+/** Where the Google Drive workspace root folder lives (persisted; backfilled from Drive API when null). */
+enum WorkspaceRootLocation {
+  MY_DRIVE
+  SHARED_DRIVE
+
+  @@schema("platform")
+}
+
 enum DocumentStatus {
   PROCESSING
   PROCESSED
@@ -120,6 +128,13 @@ enum NotificationPriority {
   @@schema("platform")
 }
 
+enum DocumentSharingPermissionStatus {
+  GRANTED
+  REVOKED
+
+  @@schema("platform")
+}
+
 // ----------------------------------------------------------------------
 // PLATFORM SCHEMA (V2)
 // ----------------------------------------------------------------------
@@ -141,10 +156,20 @@ model Connector {
   status            ConnectorStatus @default(ACTIVE)
   lastSyncAt        DateTime?
   settings          Json            @default("{}")
+  /** Set when workspace root is known; null until backfilled from Drive or an update. */
+  workspaceRootLocation        WorkspaceRootLocation?
+  /** Google shared drive id (Drive API `driveId`) when location is SHARED_DRIVE. */
+  workspaceRootSharedDriveId   String?
+  /** Cached shared drive display name for UI. */
+  workspaceRootSharedDriveName String?
+  /** Firm owner (new model). Legacy firm.connectorId flow may still be present during migration. */
+  firmId            String?         @db.Uuid
 
-  firms Firm[]
+  firms Firm[] @relation("LegacyFirmConnector")
+  firm  Firm?  @relation("FirmConnectors", fields: [firmId], references: [id], onDelete: SetNull)
 
   @@unique([type, userId])
+  @@index([firmId])
   @@map("connectors")
   @@schema("platform")
 }
@@ -163,21 +188,38 @@ model Firm {
   settings           Json     @default("{}")
   allowDomainAccess  Boolean  @default(false)
   allowedEmailDomain String?
-  stripeCustomerId   String?
-  subscriptionStatus String?  @default("none")
-  subscriptionProvider String?
-  subscriptionPlan     String?
-  subscriptionCurrentPeriodEnd DateTime? @db.Timestamptz(6)
-  polarCustomerId      String?
-  polarSubscriptionId  String?
+  /**
+   * Optional backdoor: extra firm workspaces on a single paid subscription.
+   * Satellite firms set this to the anchor firm id; the anchor holds billing state in `platform.subscriptions`.
+   * Anchor may set billingGroupFirmCap to the max total firms in the group (anchor + satellites); null = 1.
+   */
+  billingSharesSubscriptionFromFirmId String? @db.Uuid
+  billingGroupFirmCap                 Int?
+  /**
+   * Effective max concurrent ACTIVE engagements for workspaces under this billing anchor (grandfathering + exceptions).
+   * Null = derive from subscription plan at runtime until webhook/free-plan provisioning sets it.
+   */
+  billingActiveEngagementCap          Int?
+  /** When true, Polar webhooks must not overwrite billing*Cap fields (manual exceptions). */
+  billingCapsLocked                   Boolean  @default(false)
+
+  /** Optional umbrella anchor: satellites point to an anchor firm id (one-level hierarchy). */
+  anchorFirmId        String?  @db.Uuid
+
   brandingSubtext    String?
   logoUrl            String?
   themeColorHex      String?
   connectorId        String?  @db.Uuid
   firmFolderId       String?
-  sandboxOnly        Boolean  @default(false)
+  sandboxOnly        Boolean  @default(false) @map("isAnchor")
 
-  connector         Connector?        @relation(fields: [connectorId], references: [id])
+  connector         Connector?        @relation("LegacyFirmConnector", fields: [connectorId], references: [id])
+  connectors        Connector[]       @relation("FirmConnectors")
+  anchorFirm        Firm?             @relation("FirmAnchorHierarchy", fields: [anchorFirmId], references: [id], onDelete: SetNull)
+  anchoredFirms     Firm[]            @relation("FirmAnchorHierarchy")
+  billingSubscriptionAnchor Firm?     @relation("FirmBillingShare", fields: [billingSharesSubscriptionFromFirmId], references: [id], onDelete: SetNull)
+  satelliteFirms            Firm[]    @relation("FirmBillingShare")
+  subscriptions             Subscription[]
   clients           Client[]
   engagements       Engagement[]
   members           FirmMember[]
@@ -186,7 +228,39 @@ model Firm {
   docCommentMessages DocCommentMessage[]
   platformAuditEvents PlatformAuditEvent[]
 
+  @@index([billingSharesSubscriptionFromFirmId])
+  @@index([anchorFirmId])
   @@map("firms")
+  @@schema("platform")
+}
+
+model Subscription {
+  id                 String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  createdBy          String?   @db.Uuid
+  updatedBy          String?   @db.Uuid
+  deletedAt          DateTime? @db.Timestamptz(6)
+  deactivatedAt      DateTime? @db.Timestamptz(6)
+  firmId             String    @db.Uuid
+  provider           String?   @default("polar")
+  status             String    @default("active")
+  plan               String?
+  /** `recurring_subscription` | `one_time_purchase` — mirrors Polar product recurrence for caps/UI. */
+  pricingModel       String?
+  currentPeriodEnd   DateTime? @db.Timestamptz(6)
+  polarCustomerId    String?
+  polarSubscriptionId String?
+  polarOrderId       String?
+  active             Boolean   @default(true)
+  settings           Json      @default("{}")
+
+  firm               Firm      @relation(fields: [firmId], references: [id], onDelete: Cascade)
+
+  @@index([firmId, active])
+  @@index([polarCustomerId])
+  @@index([polarSubscriptionId])
+  @@map("subscriptions")
   @@schema("platform")
 }
 
@@ -236,7 +310,7 @@ model ClientContact {
   updatedBy      String?   @db.Uuid
   firmId         String    @db.Uuid
   clientId       String    @db.Uuid
-  engagementId   String?   @db.Uuid @map("projectId")
+  engagementId   String?   @db.Uuid
   name           String
   email          String?
   phone          String?
@@ -292,7 +366,7 @@ model Engagement {
   contacts              ClientContact[]
 
   @@unique([clientId, slug])
-  @@map("projects")
+  @@map("engagements")
   @@schema("platform")
 }
 
@@ -354,7 +428,7 @@ model ClientMember {
 model EngagementMember {
   id           String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId       String          @db.Uuid
-  engagementId String          @db.Uuid @map("projectId")
+  engagementId String          @db.Uuid
   role         EngagementRole
   settings     Json            @default("{}")
   createdAt    DateTime        @default(now())
@@ -365,14 +439,14 @@ model EngagementMember {
   engagement Engagement @relation(fields: [engagementId], references: [id], onDelete: Cascade)
 
   @@unique([userId, engagementId])
-  @@map("project_members")
+  @@map("engagement_members")
   @@schema("platform")
 }
 
 model FilePersonaGrant {
   id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   fileId          String   @db.Uuid
-  engagementId    String   @db.Uuid @map("projectId")
+  engagementId    String   @db.Uuid
   personaSlug     String
   grantedByUserId String   @db.Uuid
   grantedAt       DateTime @default(now())
@@ -389,7 +463,7 @@ model EngagementInvitation {
   updatedAt       DateTime         @updatedAt
   createdBy       String?          @db.Uuid
   updatedBy       String?          @db.Uuid
-  engagementId    String           @db.Uuid @map("projectId")
+  engagementId    String           @db.Uuid
   email           String
   personaId       String           @db.Uuid
   status          InvitationStatus @default(PENDING)
@@ -402,7 +476,7 @@ model EngagementInvitation {
   persona         Persona          @relation(fields: [personaId], references: [id], onDelete: Cascade)
 
   @@unique([engagementId, email])
-  @@map("project_invitations")
+  @@map("engagement_invitations")
   @@schema("platform")
 }
 
@@ -458,7 +532,7 @@ model EngagementDocument {
   updatedAt      DateTime                     @default(now()) @updatedAt @db.Timestamptz(6)
   firmId         String                       @db.Uuid
   clientId       String?                      @db.Uuid
-  engagementId  String                       @db.Uuid @map("projectId")
+  engagementId  String                       @db.Uuid
   connectorId    String?                      @db.Uuid
   externalId     String
   parentId       String?
@@ -500,7 +574,7 @@ model Notification {
   updatedBy      String?  @db.Uuid
   firmId         String   @db.Uuid
   clientId       String?  @db.Uuid
-  engagementId   String?  @db.Uuid @map("projectId")
+  engagementId   String?  @db.Uuid
   documentId     String?  @db.Uuid
 
   userId         String   @db.Uuid
@@ -551,7 +625,7 @@ model EngagementCanvas {
 
   firmId          String   @db.Uuid
   clientId        String   @db.Uuid
-  engagementId    String   @db.Uuid @map("projectId")
+  engagementId    String   @db.Uuid
 
   content         String   @default("") @db.Text
   allowExternal   Boolean  @default(false)
@@ -565,22 +639,23 @@ model EngagementCanvas {
 }
 
 model EngagementDocumentSharingUser {
-  id                 String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  createdAt          DateTime        @default(now())
-  updatedAt          DateTime        @updatedAt
-  createdBy          String?         @db.Uuid
-  updatedBy          String?         @db.Uuid
-  projectDocumentId  String          @db.Uuid
-  engagementId       String          @db.Uuid @map("projectId")
-  userId             String          @db.Uuid
-  email              String
-  googlePermissionId String?
+  id                        String                           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt                 DateTime                         @default(now())
+  updatedAt                 DateTime                         @updatedAt
+  createdBy                 String?                          @db.Uuid
+  updatedBy                 String?                          @db.Uuid
+  projectDocumentId         String                           @db.Uuid
+  engagementId              String                           @db.Uuid
+  userId                    String                           @db.Uuid
+  email                     String
+  googlePermissionId        String?
+  sharingPermissionStatus   DocumentSharingPermissionStatus  @default(GRANTED)
 
   document           EngagementDocument @relation(fields: [projectDocumentId], references: [id], onDelete: Cascade)
   engagement         Engagement         @relation(fields: [engagementId], references: [id], onDelete: Cascade)
 
   @@unique([projectDocumentId, userId])
-  @@map("project_document_sharing_users")
+  @@map("engagement_document_sharing_users")
   @@schema("platform")
 }
 
@@ -593,7 +668,7 @@ model DocCommentMessage {
 
   firmId            String   @db.Uuid
   clientId          String   @db.Uuid
-  engagementId      String   @db.Uuid @map("projectId")
+  engagementId      String   @db.Uuid
   projectDocumentId String   @db.Uuid
 
   authorUserId      String?  @db.Uuid
@@ -660,7 +735,7 @@ model PlatformAuditEvent {
 
   firmId            String                 @db.Uuid
   clientId          String?                @db.Uuid
-  engagementId     String?                @db.Uuid @map("projectId")
+  engagementId     String?                @db.Uuid
   projectDocumentId String?                @db.Uuid
 
   scope             PlatformAuditScope
@@ -696,16 +771,14 @@ model SystemAdmin {
 }
 
 model ContactSubmission {
-  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamp(6)
-  ipAddress      String?  @map("ip_address")
-  email          String?
-  plan           String?
-  role           String?
-  teamSize       String?  @map("team_size")
-  painPoint      String?  @map("pain_point")
-  featureRequest String?  @map("feature_request")
-  comments       String?
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  ipAddress   String?  @map("ip_address")
+  email       String?
+  role        String?
+  teamSize    String?  @map("team_size")
+  inquiryType String?  @map("inquiry_type")
+  message     String?
 
   @@map("contact_submissions")
   @@schema("system")
@@ -744,7 +817,7 @@ model CustomerRequest {
   metadata       Json?
   firmId         String?  @db.Uuid
   clientId       String?  @db.Uuid
-  engagementId   String?  @db.Uuid @map("projectId")
+  engagementId   String?  @db.Uuid
   userId         String?  @db.Uuid
   userEmail      String?
   createdAt      DateTime @default(now())

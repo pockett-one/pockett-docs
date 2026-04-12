@@ -3,6 +3,15 @@
 import { useState, useEffect } from 'react'
 import { X, Clock, MessageSquare, Trash2 } from 'lucide-react'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
+import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { chatStorage } from '@/lib/chat-storage'
 
 interface ChatMessage {
@@ -29,6 +38,8 @@ export function RecentSessionsModal({ isOpen, onClose, onLoadSession }: RecentSe
   const [sessions, setSessions] = useState<ChatSession[]>([])
   const [loading, setLoading] = useState(false)
   const [deleting, setDeleting] = useState<string | null>(null)
+  const [clearAllConfirmOpen, setClearAllConfirmOpen] = useState(false)
+  const [clearingAll, setClearingAll] = useState(false)
 
   useEffect(() => {
     if (isOpen) {
@@ -65,14 +76,16 @@ export function RecentSessionsModal({ isOpen, onClose, onLoadSession }: RecentSe
     }
   }
 
-  const handleClearAll = async () => {
-    if (confirm('Are you sure you want to clear all chat sessions? This cannot be undone.')) {
-      try {
-        await chatStorage.clearAllSessions()
-        setSessions([])
-      } catch (error) {
-        console.error('Failed to clear all sessions:', error)
-      }
+  const performClearAllSessions = async () => {
+    setClearingAll(true)
+    try {
+      await chatStorage.clearAllSessions()
+      setSessions([])
+      setClearAllConfirmOpen(false)
+    } catch (error) {
+      console.error('Failed to clear all sessions:', error)
+    } finally {
+      setClearingAll(false)
     }
   }
 
@@ -193,7 +206,8 @@ export function RecentSessionsModal({ isOpen, onClose, onLoadSession }: RecentSe
               {sessions.length} session{sessions.length !== 1 ? 's' : ''} stored
             </span>
             <button
-              onClick={handleClearAll}
+              type="button"
+              onClick={() => setClearAllConfirmOpen(true)}
               className="px-3 py-1.5 text-xs text-red-600 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
             >
               Clear All
@@ -201,6 +215,30 @@ export function RecentSessionsModal({ isOpen, onClose, onLoadSession }: RecentSe
           </div>
         )}
       </div>
+
+      <Dialog open={clearAllConfirmOpen} onOpenChange={setClearAllConfirmOpen}>
+        <DialogContent className="z-[100] sm:max-w-[440px]">
+          <DialogHeader>
+            <DialogTitle>Clear all chat sessions?</DialogTitle>
+            <DialogDescription className="text-slate-600">
+              This removes every stored session from this browser. This cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button type="button" variant="outline" disabled={clearingAll} onClick={() => setClearAllConfirmOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={clearingAll}
+              onClick={() => void performClearAllSessions()}
+            >
+              {clearingAll ? 'Clearing…' : 'Clear all'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

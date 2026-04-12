@@ -102,17 +102,47 @@ export async function checkClientPermission(
     const persona = user.app_metadata.active_persona
     const caps = getCapabilitiesForPersona(persona)
 
-    // Scopes mapping in V2 for client
-    if (scope === 'client') {
-      if (privilege === 'can_manage') return caps['client:can_manage'] === true
+    // Scopes mapping in V2 for client — only short-circuit on success so we can fall back
+    // when JWT persona is stale or missing client:can_manage while UserSettingsPlus says firm_admin.
+    if (scope === 'client' && privilege === 'can_manage' && caps['client:can_manage'] === true) {
+      return true
     }
   }
 
   const client = findClientInPermissions(settings.permissions, firmId, clientId)
 
-  if (!client) return false
+  if (client) {
+    const direct = client.scopes[scope]?.includes(privilege) ?? false
+    if (direct) return true
+  }
 
-  return client.scopes[scope]?.includes(privilege) ?? false
+  // Fallback: firm_admin has broad access within their firm (matches checkProjectPermission).
+  const firm = findFirmInPermissions(settings.permissions, firmId)
+  if (firm && firm.personas.includes('firm_admin')) {
+    if (scope === 'client' && privilege === 'can_manage') return true
+  }
+
+  if (client?.scopes?.client?.includes('can_manage')) {
+    return true
+  }
+
+  // Final fallback: Direct DB check for freshly-created clients / firms where the cache
+  // has not updated yet (common right after creating a client on a custom/satellite firm).
+  try {
+    const { prisma } = await import('./prisma')
+    const dbMembership = await prisma.firmMember.findFirst({
+      where: { userId: user.id, firmId },
+      select: { role: true },
+    })
+    if (dbMembership?.role === 'firm_admin' && scope === 'client' && privilege === 'can_manage') {
+      return true
+    }
+  } catch (dbError) {
+    const { logger } = await import('./logger')
+    logger.warn('DB fallback check in checkClientPermission failed', dbError as Error)
+  }
+
+  return false
 }
 
 /**
@@ -353,13 +383,14 @@ export async function isSystemManagementAdmin(userId: string): Promise<boolean> 
   if (!userId) return false
   try {
     const { prisma } = await import('./prisma')
-    const org = await (prisma as any).organization.findUnique({
+    const { FirmRole } = await import('@prisma/client')
+    const firm = await prisma.firm.findUnique({
       where: { slug: SYSTEM_MANAGEMENT_ORG_SLUG },
       select: { id: true },
     })
-    if (!org) return false
-    const member = await (prisma as any).orgMember.findFirst({
-      where: { organizationId: org.id, userId, role: 'org_admin' },
+    if (!firm) return false
+    const member = await prisma.firmMember.findFirst({
+      where: { firmId: firm.id, userId, role: FirmRole.firm_admin },
     })
     return !!member
   } catch {
@@ -376,7 +407,7 @@ export async function isSystemAdmin(userId: string): Promise<boolean> {
   if (fromOrg) return true
   try {
     const { prisma } = await import('./prisma')
-    const admin = await (prisma as any).systemAdmin.findFirst({
+    const admin = await prisma.systemAdmin.findFirst({
       where: { userId },
     })
     return !!admin
